@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusEats — Menu</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .menu-search { display:flex; align-items:center; gap:.5rem; background:var(--surface); border:1.5px solid var(--border); border-radius:999px; padding:.45rem .45rem .45rem 1rem; margin-bottom:1.25rem; transition:border-color .2s; }
+  .menu-search:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(212,80,10,.1); }
+  .menu-search input { flex:1; border:none; background:transparent; color:var(--text); font-family:'Bricolage Grotesque',sans-serif; font-size:.9rem; outline:none; }
+  .menu-search input::placeholder { color:var(--muted); }
+  .filter-row { display:flex; align-items:center; gap:.6rem; margin-bottom:1rem; flex-wrap:wrap; }
+  .fchip { padding:.3rem .8rem; border-radius:999px; border:1.5px solid var(--border); background:var(--surface); font-size:.76rem; font-weight:600; cursor:pointer; color:var(--muted); transition:all .2s; }
+  .fchip:hover   { border-color:var(--green); color:var(--green); }
+  .fchip.active  { background:var(--green); border-color:var(--green); color:#fff; }
+  .fchip.nv:hover   { border-color:var(--red); color:var(--red); }
+  .fchip.nv.active  { background:var(--red); border-color:var(--red); color:#fff; }
+  .no-results { grid-column:1/-1; text-align:center; padding:3rem; color:var(--muted); }
+  .skeleton { background:linear-gradient(90deg,var(--border) 25%,var(--bg2) 50%,var(--border) 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border-radius:var(--radius); height:220px; }
+  @keyframes shimmer { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+</style>
+</head>
+<body>
+<div id="navContainer"></div>
+
+<!-- TICKER -->
+<div class="live-ticker" id="liveTicker">
+  <div class="ticker-item"><div class="status-dot" style="background:var(--accent2);display:inline-block;width:7px;height:7px;border-radius:50%;"></div>&nbsp;<strong id="tickerStatus">Kitchen Active</strong></div>
+  <div class="ticker-sep">•</div>
+  <div class="ticker-item">📍 Pickup: <strong id="tickerCounter">Loading…</strong></div>
+  <div class="ticker-sep">•</div>
+  <div class="ticker-item">⏱ Avg wait: <strong id="tickerWait">—</strong></div>
+  <div class="ticker-sep">•</div>
+  <div class="ticker-item">🔥 Today's Special: <strong id="tickerSpecial">—</strong></div>
+  <div class="ticker-sep">•</div>
+  <div class="ticker-item">📋 <strong id="tickerQCount">0</strong> orders in queue</div>
+</div>
+
+<!-- HERO -->
+<div class="menu-hero">
+  <div class="menu-hero-inner page-enter">
+    <h2>Good <span id="greeting">Afternoon</span>, <span id="heroName">Student</span> 👋</h2>
+    <p>Fresh, hot food ready in minutes. Order now and skip the queue.</p>
+    <div class="hero-stats">
+      <div><div class="hero-stat-val" id="hItems">—</div><div class="hero-stat-label">Menu Items</div></div>
+      <div><div class="hero-stat-val">₹15–₹90</div><div class="hero-stat-label">Price Range</div></div>
+      <div><div class="hero-stat-val">4–15</div><div class="hero-stat-label">Min Prep (min)</div></div>
+      <div><div class="hero-stat-val" id="hQueue">0</div><div class="hero-stat-label">In Queue Now</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="two-col page-enter">
+  <div>
+    <div class="menu-search">
+      <span>🔍</span>
+      <input type="text" id="searchInput" placeholder="Search dishes…" oninput="applyFilters()">
+      <button style="background:var(--bg2);border:none;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:.88rem;color:var(--muted);" onclick="clearSearch()">✕</button>
+    </div>
+    <div class="filter-row">
+      <span style="font-size:.76rem;color:var(--muted);font-weight:600;">Filter:</span>
+      <button class="fchip active"  id="fc-all"    onclick="setVeg('all')">All</button>
+      <button class="fchip"         id="fc-veg"    onclick="setVeg('veg')">🟢 Veg Only</button>
+      <button class="fchip nv"      id="fc-nonveg" onclick="setVeg('nonveg')">🔴 Non-Veg</button>
+    </div>
+    <div class="category-nav" id="categoryNav"></div>
+    <div class="menu-grid" id="menuGrid">
+      ${[...Array(8)].map(()=>'<div class="skeleton"></div>').join('')}
+    </div>
+  </div>
+  <div>
+    <div class="mini-cart" id="miniCart">
+      <div class="mini-cart-title">🛒 Your Order</div>
+      <div class="mini-cart-scroll" id="miniCartItems"></div>
+      <div id="miniCartSummary" style="display:none;">
+        <hr class="mini-divider">
+        <div class="mini-row"><span>Subtotal</span><span id="mSub">₹0</span></div>
+        <div class="mini-row"><span>Tax (5%)</span><span id="mTax">₹0</span></div>
+        <div class="mini-row bold"><span>Total</span><span id="mTotal">₹0</span></div>
+        <div class="time-box" style="margin-top:.75rem;">
+          <div class="time-box-title">⏱ Estimate</div>
+          <div class="t-row"><span>Prep</span><span class="t-val" id="mPrep">—</span></div>
+          <div class="t-row"><span>Ready by</span><span class="t-val" id="mReady">—</span></div>
+        </div>
+        <a href="/cart.html" class="btn btn-primary btn-block" style="margin-top:1rem;border-radius:var(--radius-sm);">View Cart & Checkout →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  const CATEGORIES = [
+    {id:'all',label:'All Items',icon:'🍽️'},{id:'breakfast',label:'Breakfast',icon:'🌅'},
+    {id:'mains',label:'Mains',icon:'🍛'},{id:'snacks',label:'Snacks',icon:'🥪'},
+    {id:'beverages',label:'Beverages',icon:'☕'},{id:'desserts',label:'Desserts',icon:'🍮'},
+  ];
+
+  const user = pageRequireStudent();
+  if (!user) throw '';
+
+  let allMenu   = [];
+  let currentCat = 'all';
+  let vegFilter  = 'all';
+  let queueCount = 0;
+
+  document.getElementById('greeting').textContent = getMealGreeting();
+  document.getElementById('heroName').textContent  = user.name.split(' ')[0];
+  injectNavbar('menu');
+
+  // Connect socket for live queue updates
+  connectSocket({
+    onOrderNew:      () => refreshQueue(),
+    onOrderUpdated:  () => refreshQueue(),
+    onSettingsUpdated: (s) => applySettings(s),
+    onMenuUpdated:   (item) => {
+      const idx = allMenu.findIndex(m => m.id === item.id);
+      if (idx !== -1) allMenu[idx] = item;
+      applyFilters();
+    },
+  });
+
+  // Load everything in parallel
+  (async () => {
+    await loadConfig();
+    applySettingsFromConfig();
+    const [menuData, queueData] = await Promise.all([API.getMenu(), API.getQueue()]);
+    allMenu = menuData.items;
+    queueCount = queueData.aheadCount;
+    document.getElementById('hItems').textContent = allMenu.length;
+    document.getElementById('hQueue').textContent = queueCount;
+    document.getElementById('tickerQCount').textContent = queueCount;
+    renderCategoryNav();
+    applyFilters();
+    updateMiniCart();
+  })();
+
+  function applySettingsFromConfig() {
+    document.getElementById('tickerCounter').textContent = CE_CONFIG.pickupCounter;
+    document.getElementById('tickerSpecial').textContent = CE_CONFIG.todaysSpecial || 'Chicken Biryani';
+    const waitMin = 5 + queueCount * 3;
+    document.getElementById('tickerWait').textContent = '~' + waitMin + ' min';
+  }
+
+  function applySettings(s) {
+    if (s.pickup_counter) document.getElementById('tickerCounter').textContent = s.pickup_counter;
+    if (s.todays_special) document.getElementById('tickerSpecial').textContent = s.todays_special;
+  }
+
+  async function refreshQueue() {
+    try {
+      const { aheadCount } = await API.getQueue();
+      queueCount = aheadCount;
+      document.getElementById('hQueue').textContent       = queueCount;
+      document.getElementById('tickerQCount').textContent = queueCount;
+      document.getElementById('tickerWait').textContent   = '~' + (5 + queueCount * 3) + ' min';
+    } catch {}
+  }
+
+  /* ── Render ── */
+  function renderCategoryNav() {
+    document.getElementById('categoryNav').innerHTML = CATEGORIES.map(c => `
+      <button class="cat-btn ${currentCat===c.id?'active':''}" onclick="setCat('${c.id}')">
+        ${c.icon} ${c.label}
+      </button>`).join('');
+  }
+
+  function setCat(id)    { currentCat = id; renderCategoryNav(); applyFilters(); }
+  function clearSearch() { document.getElementById('searchInput').value=''; applyFilters(); }
+
+  function setVeg(f) {
+    vegFilter = f;
+    ['all','veg','nonveg'].forEach(id => {
+      document.getElementById('fc-'+id).classList.toggle('active', id===f);
+    });
+    applyFilters();
+  }
+
+  function applyFilters() {
+    const q = document.getElementById('searchInput').value.toLowerCase();
+    let items = allMenu;
+    if (currentCat !== 'all') items = items.filter(m => m.category === currentCat);
+    if (vegFilter  === 'veg')    items = items.filter(m => m.veg);
+    if (vegFilter  === 'nonveg') items = items.filter(m => !m.veg);
+    if (q) items = items.filter(m => m.name.toLowerCase().includes(q) || (m.description||'').toLowerCase().includes(q));
+    renderGrid(items);
+    updateMiniCart();
+  }
+
+  function renderGrid(items) {
+    const cart = Cart.get();
+    const grid = document.getElementById('menuGrid');
+    if (!items.length) {
+      grid.innerHTML = '<div class="no-results"><div style="font-size:3rem;margin-bottom:.75rem;">🔍</div><p>No items match your search.</p></div>';
+      return;
+    }
+    grid.innerHTML = items.map(item => {
+      const qty = cart[item.id] || 0;
+      return `
+        <div class="menu-card ${!item.available?'unavailable':''}">
+          <div class="menu-card-img">
+            ${item.emoji}
+            <div class="veg-dot ${item.veg?'veg':'nonveg'}"></div>
+            ${item.popular ? '<div class="popular-tag">🔥 Popular</div>' : ''}
+            ${!item.available ? '<div class="unavail-overlay">UNAVAILABLE</div>' : ''}
+          </div>
+          <div class="menu-card-body">
+            <div class="menu-card-name">${item.name}</div>
+            <div class="menu-card-meta">
+              <span class="rating-star">★</span>
+              <span style="font-size:.72rem;color:var(--muted);">${item.rating}</span>
+              <span class="prep-time">· ⏱ ${item.prep_time}m</span>
+            </div>
+            <div class="menu-card-desc">${item.description || ''}</div>
+            <div class="menu-card-footer">
+              <div class="menu-card-price">₹${item.price}</div>
+              ${qty===0
+                ? `<button class="add-btn" onclick="addItem(${item.id})">+</button>`
+                : `<div class="qty-inline">
+                     <button class="qty-btn" onclick="changeItem(${item.id},-1)">−</button>
+                     <span class="qty-num">${qty}</span>
+                     <button class="qty-btn" onclick="changeItem(${item.id}, 1)">+</button>
+                   </div>`}
+            </div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function addItem(id)         { Cart.add(id, 1); updateNavCartCount(); applyFilters(); showToast('Added to cart!'); }
+  function changeItem(id, d)   { Cart.add(id, d); updateNavCartCount(); applyFilters(); updateMiniCart(); }
+
+  function updateMiniCart() {
+    const items = Cart.getItemsArray(allMenu);
+    const c = document.getElementById('miniCartItems');
+    const s = document.getElementById('miniCartSummary');
+    if (!items.length) {
+      c.innerHTML = '<div class="mini-empty"><div class="ec-icon">🛒</div><p>Your cart is empty</p></div>';
+      s.style.display = 'none'; return;
+    }
+    c.innerHTML = items.map(it => `
+      <div class="mini-cart-item">
+        <span class="mini-emoji">${it.emoji}</span>
+        <span class="mini-name">${it.name} ×${it.qty}</span>
+        <span class="mini-price">₹${it.price * it.qty}</span>
+      </div>`).join('');
+    s.style.display = 'block';
+    document.getElementById('mSub').textContent   = '₹' + Cart.subtotal(allMenu);
+    document.getElementById('mTax').textContent   = '₹' + Cart.tax(allMenu);
+    document.getElementById('mTotal').textContent = '₹' + Cart.total(allMenu);
+    document.getElementById('mPrep').textContent  = '~' + Cart.maxPrepTime(allMenu) + ' min';
+    document.getElementById('mReady').textContent = estimatePickupTime(queueCount, Cart.maxPrepTime(allMenu));
+  }
+</script>
+</body>
+</html>

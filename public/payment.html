@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusEats — Payment</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .pay-section { background:var(--surface); border:1.5px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:1.25rem; }
+  .pay-section h3 { font-size:1.05rem; margin-bottom:1.25rem; }
+  .processing-overlay { position:fixed; inset:0; background:rgba(255,255,255,.9); z-index:999; display:none; flex-direction:column; align-items:center; justify-content:center; gap:1rem; }
+  .processing-overlay.show { display:flex; }
+  .spin { width:52px; height:52px; border-radius:50%; border:4px solid var(--border); border-top-color:var(--accent); animation:spin .8s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg);} }
+  .card-grid { display:grid; grid-template-columns:1fr 1fr; gap:.75rem; }
+</style>
+</head>
+<body>
+<div id="navContainer"></div>
+
+<div class="processing-overlay" id="proc">
+  <div class="spin"></div>
+  <div style="font-family:'Clash Display',sans-serif;font-size:1.2rem;font-weight:700;">Placing your order…</div>
+  <div style="color:var(--muted);font-size:.85rem;">Hold on, this takes a second.</div>
+</div>
+
+<!-- PAYMENT FORM -->
+<div id="paymentArea">
+  <div class="page-header">
+    <a href="/cart.html" class="back-btn">←</a>
+    <div class="page-header-info"><h2>Checkout</h2><p>Review and pay</p></div>
+  </div>
+  <div class="payment-grid page-enter">
+    <div>
+      <div class="pay-section">
+        <h3>🧾 Order Review</h3>
+        <div id="reviewList" style="display:flex;flex-direction:column;gap:.5rem;"></div>
+      </div>
+      <div class="pay-section">
+        <h3>💳 Payment Method</h3>
+        <div class="pm-option selected" id="pm-cash" onclick="selPM('cash')">
+          <input type="radio" name="pm" checked style="accent-color:var(--accent);">
+          <div class="pm-icon">💵</div>
+          <div><div class="pm-label">Pay at Counter (Cash)</div><div class="pm-sub">Pay when you collect your order</div></div>
+        </div>
+        <div class="pm-option" id="pm-upi" onclick="selPM('upi')">
+          <input type="radio" name="pm" style="accent-color:var(--accent);">
+          <div class="pm-icon">📱</div>
+          <div style="flex:1;">
+            <div class="pm-label">UPI Payment</div>
+            <div class="pm-sub">GPay, PhonePe, Paytm, BHIM</div>
+            <div class="pm-extra" id="upiExtra">
+              <label class="input-label" style="margin-top:.5rem;">UPI ID</label>
+              <input class="input" id="upiId" type="text" placeholder="name@upi">
+            </div>
+          </div>
+        </div>
+        <div class="pm-option" id="pm-card" onclick="selPM('card')">
+          <input type="radio" name="pm" style="accent-color:var(--accent);">
+          <div class="pm-icon">💳</div>
+          <div><div class="pm-label">Debit / Credit Card</div><div class="pm-sub">Visa, Mastercard, RuPay</div></div>
+        </div>
+      </div>
+      <div class="pay-section" id="cardSec" style="display:none;">
+        <h3>🔒 Card Details</h3>
+        <div style="display:flex;flex-direction:column;gap:.9rem;">
+          <div class="form-group"><label class="input-label">Card Number</label><input class="input" type="text" placeholder="1234 5678 9012 3456" maxlength="19" oninput="fmtCard(this)"></div>
+          <div class="card-grid">
+            <div class="form-group"><label class="input-label">Expiry MM/YY</label><input class="input" type="text" placeholder="MM/YY" maxlength="5"></div>
+            <div class="form-group"><label class="input-label">CVV</label><input class="input" type="password" placeholder="•••" maxlength="3"></div>
+          </div>
+          <div class="form-group"><label class="input-label">Name on Card</label><input class="input" type="text" placeholder="Full name"></div>
+        </div>
+      </div>
+      <div class="pay-section">
+        <h3>📝 Special Instructions <span style="font-size:.76rem;color:var(--muted);font-family:'Bricolage Grotesque',sans-serif;font-weight:400;">(optional)</span></h3>
+        <textarea class="input" id="notes" rows="2" placeholder="Allergies, preferences? e.g. Extra spicy, no onion…"></textarea>
+      </div>
+    </div>
+    <div>
+      <div class="summary-card">
+        <h3>Bill Summary</h3>
+        <div id="billItems" style="display:flex;flex-direction:column;gap:.4rem;margin-bottom:.75rem;font-size:.84rem;color:var(--text2);"></div>
+        <div class="sum-line"><span>Subtotal</span><span id="pSub">₹0</span></div>
+        <div class="sum-line"><span>Taxes (5%)</span><span id="pTax">₹0</span></div>
+        <div class="sum-line grand"><span>Total Payable</span><span id="pTotal">₹0</span></div>
+        <div class="time-box">
+          <div class="time-box-title">🎯 Pickup Estimate</div>
+          <div class="t-row"><span>Ready by</span><span class="t-val" id="pReady">—</span></div>
+          <div class="t-row"><span>Counter</span><span class="t-val" id="pCounter">—</span></div>
+        </div>
+        <button class="pay-btn" id="payBtn" onclick="confirmOrder()">
+          <span id="payBtnTxt">✅ Confirm Order</span>
+        </button>
+        <div class="secure-note">🔒 Secure. Token shown after confirmation.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SUCCESS -->
+<div id="successArea" style="display:none;">
+  <div class="success-wrap page-enter">
+    <div class="success-circle">🎉</div>
+    <h2 style="font-size:2rem;margin-bottom:.5rem;">Order Confirmed!</h2>
+    <p style="color:var(--muted);font-size:.92rem;margin-bottom:.5rem;">Show this token when picking up your order.</p>
+    <div class="token-display" id="sToken">#—</div>
+    <div class="confirm-card">
+      <div class="sum-line"><span>Student</span><span id="sName">—</span></div>
+      <div class="sum-line"><span>Queue Position</span><span id="sPos">—</span></div>
+      <div class="sum-line"><span>Estimated Ready</span><span id="sReady">—</span></div>
+      <div class="sum-line"><span>Pickup Counter</span><span id="sCounter">—</span></div>
+      <div class="sum-line"><span>Payment</span><span id="sPay">—</span></div>
+      <div class="sum-line grand"><span>Amount</span><span id="sAmt">—</span></div>
+    </div>
+    <div class="confirm-actions">
+      <a href="/track.html" class="btn btn-primary btn-lg">📍 Track Order</a>
+      <a href="/menu.html"  class="btn btn-ghost btn-lg">+ New Order</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  const user = pageRequireStudent();
+  if (!user) throw '';
+  injectNavbar('');
+
+  let allMenu    = [];
+  let selPayment = 'cash';
+  let queueCount = 0;
+
+  (async () => {
+    await loadConfig();
+    document.getElementById('pCounter').textContent = CE_CONFIG.pickupCounter;
+    const [menuData, queueData] = await Promise.all([API.getMenu(), API.getQueue()]);
+    allMenu    = menuData.items;
+    queueCount = queueData.aheadCount;
+    renderReview();
+  })();
+
+  function renderReview() {
+    const items = Cart.getItemsArray(allMenu);
+    if (!items.length) { window.location.href='/cart.html'; return; }
+
+    document.getElementById('reviewList').innerHTML = items.map(it => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:.9rem;">${it.emoji} ${it.name} <span style="color:var(--muted);">×${it.qty}</span></span>
+        <span style="font-weight:600;color:var(--accent);">₹${it.price*it.qty}</span>
+      </div>`).join('');
+
+    document.getElementById('billItems').innerHTML = items.map(it =>
+      `<div style="display:flex;justify-content:space-between;"><span>${it.emoji} ${it.name} ×${it.qty}</span><span>₹${it.price*it.qty}</span></div>`
+    ).join('');
+
+    const sub = Cart.subtotal(allMenu), tax = Cart.tax(allMenu), total = Cart.total(allMenu);
+    document.getElementById('pSub').textContent  = '₹' + sub;
+    document.getElementById('pTax').textContent  = '₹' + tax;
+    document.getElementById('pTotal').textContent= '₹' + total;
+    document.getElementById('pReady').textContent= estimatePickupTime(queueCount, Cart.maxPrepTime(allMenu));
+    document.getElementById('payBtnTxt').textContent = '✅ Confirm Order — ₹' + total;
+  }
+
+  function selPM(t) {
+    selPayment = t;
+    ['cash','upi','card'].forEach(p => document.getElementById('pm-'+p).classList.toggle('selected', p===t));
+    document.getElementById('upiExtra').classList.toggle('show', t==='upi');
+    document.getElementById('cardSec').style.display = t==='card' ? 'block' : 'none';
+  }
+
+  function fmtCard(el) {
+    let v = el.value.replace(/\D/g,'');
+    el.value = v.replace(/(.{4})/g,'$1 ').trim().slice(0,19);
+  }
+
+  async function confirmOrder() {
+    const items = Cart.getItemsArray(allMenu);
+    if (!items.length) return;
+    document.getElementById('proc').classList.add('show');
+    document.getElementById('payBtn').disabled = true;
+
+    try {
+      const apiItems = items.map(it => ({ id: it.id, qty: it.qty }));
+      const notes    = document.getElementById('notes').value.trim();
+      const { order } = await API.placeOrder(apiItems, selPayment, notes);
+      Cart.clear();
+
+      // Store token for track page
+      localStorage.setItem('ce_last_token', order.token);
+
+      document.getElementById('paymentArea').style.display = 'none';
+      document.getElementById('successArea').style.display = 'block';
+
+      const pmLabel = { cash:'Cash at Counter', upi:'UPI', card:'Card' };
+      document.getElementById('sToken').textContent  = '#' + order.token;
+      document.getElementById('sName').textContent   = user.name;
+      document.getElementById('sPos').textContent    = 'In queue';
+      document.getElementById('sReady').textContent  = fmtTime(new Date(order.pickup_by_iso));
+      document.getElementById('sCounter').textContent= CE_CONFIG.pickupCounter;
+      document.getElementById('sPay').textContent    = pmLabel[selPayment] || selPayment;
+      document.getElementById('sAmt').textContent    = '₹' + order.total;
+
+      showToast('🎉 Order #' + order.token + ' placed!', 'success');
+    } catch (e) {
+      showToast(e.message || 'Failed to place order. Please try again.', 'error');
+      document.getElementById('payBtn').disabled = false;
+    } finally {
+      document.getElementById('proc').classList.remove('show');
+    }
+  }
+</script>
+</body>
+</html>

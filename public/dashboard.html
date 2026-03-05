@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusEats — Kitchen Dashboard</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  .dash-tab-bar { background:var(--surface); border-bottom:1px solid var(--border); display:flex; overflow-x:auto; }
+  .dtab { padding:.85rem 1.4rem; border:none; background:transparent; font-family:'Bricolage Grotesque',sans-serif; font-size:.88rem; font-weight:600; cursor:pointer; color:var(--muted); border-bottom:2.5px solid transparent; transition:all .2s; white-space:nowrap; }
+  .dtab:hover   { color:var(--text); background:var(--bg); }
+  .dtab.active  { color:var(--accent); border-bottom-color:var(--accent); background:var(--accent-light); }
+  .new-flash { animation: flashIn .5s ease; }
+  @keyframes flashIn { 0%{background:rgba(212,80,10,.18);} 100%{background:transparent;} }
+  .sw { display:flex; gap:3px; align-items:center; height:18px; }
+  .sw span { width:3px; border-radius:2px; background:var(--accent2); animation:sw .8s ease-in-out infinite; }
+  .sw span:nth-child(2){animation-delay:.15s;} .sw span:nth-child(3){animation-delay:.3s;}
+  @keyframes sw{0%,100%{height:4px;}50%{height:16px;}}
+  .menu-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:.6rem 0; border-bottom:1px solid var(--border); font-size:.86rem; }
+  .toggle-switch { position:relative; width:40px; height:22px; cursor:pointer; }
+  .toggle-switch input { opacity:0; width:0; height:0; }
+  .toggle-slider { position:absolute; inset:0; background:var(--border2); border-radius:999px; transition:.3s; }
+  .toggle-slider:before { content:''; position:absolute; height:16px; width:16px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
+  input:checked + .toggle-slider { background:var(--green); }
+  input:checked + .toggle-slider:before { transform:translateX(18px); }
+</style>
+</head>
+<body>
+
+<div class="dash-hero">
+  <div>
+    <h1>🍳 Kitchen Dashboard</h1>
+    <p id="dashStaffName">Loading…</p>
+  </div>
+  <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+    <div id="cStatusPill" class="status-pill pill-open"><div class="status-dot"></div><span id="cStatusTxt">Open</span></div>
+    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="toggleCanteen()">Toggle Status</button>
+    <button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="doSignOut()">Sign Out</button>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="dash-stats">
+  <div><div class="ds-val" id="dsTotal"     style="color:var(--accent);">0</div><div class="ds-label">Total Today</div></div>
+  <div><div class="ds-val" id="dsQueued"    style="color:var(--yellow);">0</div><div class="ds-label">Queued</div></div>
+  <div><div class="ds-val" id="dsPreparing" style="color:var(--accent2);">0</div><div class="ds-label">Preparing</div></div>
+  <div><div class="ds-val" id="dsReady"     style="color:var(--green);">0</div><div class="ds-label">Ready</div></div>
+  <div><div class="ds-val" id="dsRevenue"   style="color:var(--text);">₹0</div><div class="ds-label">Revenue</div></div>
+</div>
+
+<!-- TABS -->
+<div class="dash-tab-bar">
+  <button class="dtab active" id="dt-active"  onclick="setTab('active')">📥 Active Orders</button>
+  <button class="dtab"        id="dt-ready"   onclick="setTab('ready')">✅ Ready</button>
+  <button class="dtab"        id="dt-done"    onclick="setTab('done')">📦 Completed</button>
+  <button class="dtab"        id="dt-menu"    onclick="setTab('menu')">🍽️ Menu Manager</button>
+  <button class="dtab"        id="dt-settings"onclick="setTab('settings')">⚙️ Settings</button>
+</div>
+
+<div class="dash-body">
+  <div>
+    <div id="tabActive">
+      <div class="dash-panel">
+        <div class="dash-panel-hd">
+          <div style="display:flex;align-items:center;gap:.75rem;">
+            <h3>📥 Incoming Orders</h3>
+            <div class="sw" id="swAnim" style="display:none;"><span></span><span></span><span></span></div>
+          </div>
+          <div style="display:flex;gap:.5rem;align-items:center;">
+            <span class="badge badge-orange" id="activeBadge">0</span>
+          </div>
+        </div>
+        <div id="activeList"></div>
+      </div>
+    </div>
+
+    <div id="tabReady" style="display:none;">
+      <div class="dash-panel">
+        <div class="dash-panel-hd"><h3>✅ Ready for Pickup</h3><span class="badge badge-green" id="readyBadge">0</span></div>
+        <div id="readyList"></div>
+      </div>
+    </div>
+
+    <div id="tabDone" style="display:none;">
+      <div class="dash-panel">
+        <div class="dash-panel-hd">
+          <h3>📦 Completed Orders</h3>
+          <button class="btn btn-sm btn-secondary" onclick="clearCompleted()">🗑 Clear All</button>
+        </div>
+        <div id="doneList"></div>
+      </div>
+    </div>
+
+    <div id="tabMenu" style="display:none;">
+      <div class="dash-panel">
+        <div class="dash-panel-hd"><h3>🍽️ Menu Manager</h3><span style="font-size:.8rem;color:var(--muted);">Toggle to mark items unavailable</span></div>
+        <div id="menuMgrList" style="padding:.5rem 1.25rem;"></div>
+      </div>
+    </div>
+
+    <div id="tabSettings" style="display:none;">
+      <div class="dash-panel">
+        <div class="dash-panel-hd"><h3>⚙️ Canteen Settings</h3></div>
+        <div style="padding:1.5rem;display:flex;flex-direction:column;gap:1rem;">
+          <div class="form-group"><label class="input-label">College Name</label><input class="input" id="setCollege" type="text"></div>
+          <div class="form-group"><label class="input-label">Canteen Name</label><input class="input" id="setCanteen" type="text"></div>
+          <div class="form-group"><label class="input-label">Pickup Counter Location</label><input class="input" id="setCounter" type="text"></div>
+          <div class="form-group"><label class="input-label">Today's Special (shown in ticker)</label><input class="input" id="setSpecial" type="text"></div>
+          <button class="btn btn-primary" onclick="saveSettings()">Save Settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-side">
+    <div class="side-card">
+      <h4>🔔 Awaiting Pickup</h4>
+      <div id="sideReady"></div>
+    </div>
+    <div class="side-card">
+      <h4>⚡ Quick Actions</h4>
+      <div style="display:flex;flex-direction:column;gap:.5rem;">
+        <a href="/menu.html" target="_blank" class="btn btn-sm btn-secondary btn-block" style="justify-content:flex-start;">👁 Preview Menu</a>
+        <button class="btn btn-sm btn-secondary btn-block" style="justify-content:flex-start;" onclick="clearCompleted()">🗑 Clear Completed</button>
+      </div>
+    </div>
+    <div class="side-card">
+      <h4>🏆 Top Items Today</h4>
+      <div id="topItems" style="font-size:.83rem;color:var(--text2);"></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  const user = pageRequireStaff();
+  if (!user) throw '';
+
+  let allOrders = [];
+  let allMenu   = [];
+  let currentTab = 'active';
+
+  document.getElementById('dashStaffName').textContent = '👨‍🍳 ' + user.name;
+
+  // Connect socket
+  connectSocket({
+    onOrderNew:     (o) => { allOrders.push(o); renderAll(); showToast('📥 New order #'+o.token+'!', 'info'); flashPanel(); },
+    onOrderUpdated: (o) => { const i=allOrders.findIndex(x=>x.token===o.token); if(i!==-1) allOrders[i]=o; renderAll(); },
+    onMenuUpdated:  (item) => { const i=allMenu.findIndex(m=>m.id===item.id); if(i!==-1) allMenu[i]=item; renderMenuMgr(); },
+  });
+
+  (async () => {
+    await loadConfig();
+    loadSettings();
+    const [ordersData, menuData] = await Promise.all([API.getTodaysOrders(), API.getMenu()]);
+    allOrders = ordersData.orders;
+    allMenu   = menuData.items;
+    updateCanteenUI();
+    renderAll();
+  })();
+
+  async function loadSettings() {
+    await loadConfig();
+    document.getElementById('setCollege').value  = CE_CONFIG.collegeName    || '';
+    document.getElementById('setCanteen').value  = CE_CONFIG.canteenName    || '';
+    document.getElementById('setCounter').value  = CE_CONFIG.pickupCounter  || '';
+    document.getElementById('setSpecial').value  = CE_CONFIG.todaysSpecial  || '';
+  }
+
+  function setTab(t) {
+    currentTab = t;
+    ['active','ready','done','menu','settings'].forEach(x => {
+      document.getElementById('dt-'+x).classList.toggle('active', x===t);
+      document.getElementById('tab'+x.charAt(0).toUpperCase()+x.slice(1)).style.display = x===t?'block':'none';
+    });
+    if (t==='menu') renderMenuMgr();
+  }
+
+  function renderAll() { updateStats(); renderActive(); renderReady(); renderDone(); renderSideReady(); renderTopItems(); }
+
+  function updateStats() {
+    document.getElementById('dsTotal').textContent     = allOrders.length;
+    document.getElementById('dsQueued').textContent    = allOrders.filter(o=>o.status==='queued').length;
+    document.getElementById('dsPreparing').textContent = allOrders.filter(o=>o.status==='preparing').length;
+    document.getElementById('dsReady').textContent     = allOrders.filter(o=>o.status==='ready').length;
+    document.getElementById('dsRevenue').textContent   = '₹' + allOrders.reduce((s,o)=>s+o.total,0);
+    const q = allOrders.filter(o=>o.status==='queued'||o.status==='preparing').length;
+    document.getElementById('activeBadge').textContent = q;
+    document.getElementById('readyBadge').textContent  = allOrders.filter(o=>o.status==='ready').length;
+    document.getElementById('swAnim').style.display    = q>0 ? 'flex' : 'none';
+  }
+
+  function renderActive() {
+    const active = allOrders.filter(o=>o.status==='queued'||o.status==='preparing');
+    const el = document.getElementById('activeList');
+    if (!active.length) { el.innerHTML='<div class="no-orders-msg"><div class="no-orders-icon">🎉</div><p>No pending orders. All caught up!</p></div>'; return; }
+    el.innerHTML = active.map(o => {
+      const elapsed  = elapsedMin(o.placed_at);
+      const urgent   = elapsed > o.prep_time;
+      return `
+        <div class="o-ticket" id="ot-${o.token}">
+          <div class="o-ticket-top">
+            <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+              <span class="o-ticket-id">#${o.token}</span>
+              <span class="o-ticket-name">${o.student_name}</span>
+              <span class="badge ${o.status==='preparing'?'badge-orange':'badge-grey'}">${o.status==='preparing'?'Preparing':'Queued'}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:.6rem;">
+              <span class="o-ticket-timer ${urgent?'urgent':''}">${elapsed}m ago</span>
+              <span style="font-size:.78rem;color:var(--muted);">₹${o.total}</span>
+            </div>
+          </div>
+          <div class="o-ticket-items">${o.items.map(it=>`${it.emoji} ${it.name} ×${it.qty}`).join(' · ')}</div>
+          ${o.instructions ? `<div class="o-ticket-note">📝 "${o.instructions}"</div>` : ''}
+          <div class="o-ticket-actions">
+            ${o.status==='queued'    ? `<button class="t-action-btn btn-start" onclick="setStatus(${o.token},'preparing')">▶ Start Preparing</button>` : ''}
+            ${o.status==='preparing' ? `<button class="t-action-btn btn-ready" onclick="setStatus(${o.token},'ready')">✅ Mark Ready</button>` : ''}
+            <span style="font-size:.76rem;color:var(--muted);">${fmtTime(new Date(o.placed_at*1000))}</span>
+          </div>
+          ${o.status==='preparing' ? `<div class="o-ticket-prog"><div class="o-ticket-prog-fill" style="width:${o.progress_pct||0}%"></div></div>` : ''}
+        </div>`;
+    }).join('');
+  }
+
+  function renderReady() {
+    const ready = allOrders.filter(o=>o.status==='ready');
+    const el = document.getElementById('readyList');
+    if (!ready.length) { el.innerHTML='<div class="no-orders-msg"><div class="no-orders-icon">⏳</div><p>No orders ready yet.</p></div>'; return; }
+    el.innerHTML = ready.map(o => `
+      <div class="o-ticket">
+        <div class="o-ticket-top">
+          <div style="display:flex;align-items:center;gap:.6rem;">
+            <span class="o-ticket-id">#${o.token}</span>
+            <span class="o-ticket-name">${o.student_name}</span>
+            <span class="badge badge-green">✅ Ready</span>
+          </div>
+          <span style="font-size:.8rem;color:var(--muted);">₹${o.total}</span>
+        </div>
+        <div class="o-ticket-items">${o.items.map(it=>`${it.emoji} ${it.name} ×${it.qty}`).join(' · ')}</div>
+        <div class="o-ticket-actions">
+          <button class="t-action-btn btn-ready" onclick="setStatus(${o.token},'pickedup')">✓ Confirm Pickup</button>
+        </div>
+      </div>`).join('');
+  }
+
+  function renderDone() {
+    const done = allOrders.filter(o=>o.status==='pickedup').slice().reverse();
+    const el = document.getElementById('doneList');
+    if (!done.length) { el.innerHTML='<div class="no-orders-msg"><div class="no-orders-icon">📦</div><p>No completed orders yet.</p></div>'; return; }
+    el.innerHTML = done.map(o => `
+      <div class="o-ticket" style="opacity:.65;">
+        <div class="o-ticket-top">
+          <div><span class="o-ticket-id">#${o.token}</span> <span class="o-ticket-name">${o.student_name}</span> <span class="badge badge-grey">Picked Up</span></div>
+          <span style="font-size:.8rem;color:var(--muted);">₹${o.total}</span>
+        </div>
+        <div class="o-ticket-items">${o.items.map(it=>`${it.emoji} ${it.name} ×${it.qty}`).join(' · ')}</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.3rem;">${fmtTime(new Date(o.placed_at*1000))}</div>
+      </div>`).join('');
+  }
+
+  function renderSideReady() {
+    const ready = allOrders.filter(o=>o.status==='ready');
+    const el = document.getElementById('sideReady');
+    if (!ready.length) { el.innerHTML='<div style="color:var(--muted);font-size:.83rem;padding:.4rem 0;">Nothing yet.</div>'; return; }
+    el.innerHTML = ready.map(o => `
+      <div class="ready-row">
+        <div><div class="ready-id">#${o.token}</div><div class="ready-name">${o.student_name.split(' ')[0]} · ₹${o.total}</div></div>
+        <button class="pickup-btn" onclick="setStatus(${o.token},'pickedup')">Picked Up ✓</button>
+      </div>`).join('');
+  }
+
+  function renderTopItems() {
+    const counts = {};
+    allOrders.forEach(o => o.items.forEach(it => { counts[it.name]=(counts[it.name]||0)+it.qty; }));
+    const sorted = Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,5);
+    const el = document.getElementById('topItems');
+    if (!sorted.length) { el.innerHTML='<div style="color:var(--muted);">No orders yet.</div>'; return; }
+    el.innerHTML = sorted.map(([name,qty]) => `
+      <div style="display:flex;justify-content:space-between;padding:.35rem 0;border-bottom:1px solid var(--border);">
+        <span>${name}</span><span style="font-weight:700;color:var(--accent);">${qty}</span>
+      </div>`).join('');
+  }
+
+  async function renderMenuMgr() {
+    const el = document.getElementById('menuMgrList');
+    if (!allMenu.length) { el.innerHTML='<div style="color:var(--muted);padding:1rem;">Loading menu…</div>'; return; }
+    const cats = [...new Set(allMenu.map(m=>m.category))];
+    el.innerHTML = cats.map(cat => `
+      <div style="margin-bottom:1.25rem;">
+        <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:.5rem 0;">${cat}</div>
+        ${allMenu.filter(m=>m.category===cat).map(item => `
+          <div class="menu-toggle-row">
+            <div>
+              <span style="font-weight:600;">${item.emoji} ${item.name}</span>
+              <span style="font-size:.78rem;color:var(--muted);margin-left:.5rem;">₹${item.price}</span>
+            </div>
+            <label class="toggle-switch">
+              <input type="checkbox" ${item.available?'checked':''} onchange="toggleMenuItem(${item.id})">
+              <span class="toggle-slider"></span>
+            </label>
+          </div>`).join('')}
+      </div>`).join('');
+  }
+
+  async function toggleMenuItem(id) {
+    try {
+      const { item, message } = await API.toggleItem(id);
+      const idx = allMenu.findIndex(m=>m.id===id);
+      if (idx !== -1) allMenu[idx] = item;
+      showToast(message);
+    } catch (e) { showToast(e.message, 'error'); }
+  }
+
+  async function setStatus(token, status) {
+    try {
+      const { order } = await API.setOrderStatus(token, status);
+      const i = allOrders.findIndex(o=>o.token===token);
+      if (i!==-1) allOrders[i] = order;
+      renderAll();
+      const labels = { preparing:'🔥 Started preparing', ready:'✅ Marked ready', pickedup:'🎉 Picked up' };
+      showToast((labels[status]||'Updated') + ' #'+token, status==='ready'?'success':'');
+    } catch (e) { showToast(e.message, 'error'); }
+  }
+
+  async function toggleCanteen() {
+    const open = CE_CONFIG.canteenOpen === false ? true : false; // toggle
+    try {
+      await API.updateSettings({ canteen_open: String(open) });
+      CE_CONFIG.canteenOpen = open;
+      updateCanteenUI();
+      showToast(open ? '✅ Canteen is now OPEN' : '🔴 Canteen is now CLOSED', open?'success':'error');
+    } catch (e) { showToast(e.message, 'error'); }
+  }
+
+  function updateCanteenUI() {
+    const open = CE_CONFIG.canteenOpen !== false;
+    document.getElementById('cStatusPill').className = 'status-pill ' + (open?'pill-open':'pill-closed');
+    document.getElementById('cStatusTxt').textContent = open ? 'Open for Orders' : 'Closed';
+  }
+
+  async function saveSettings() {
+    try {
+      await API.updateSettings({
+        college_name:   document.getElementById('setCollege').value.trim(),
+        canteen_name:   document.getElementById('setCanteen').value.trim(),
+        pickup_counter: document.getElementById('setCounter').value.trim(),
+        todays_special: document.getElementById('setSpecial').value.trim(),
+      });
+      showToast('✅ Settings saved!', 'success');
+    } catch (e) { showToast(e.message, 'error'); }
+  }
+
+  async function clearCompleted() {
+    // Client-side only — completed orders stay in DB for records, just hide them from view
+    allOrders = allOrders.filter(o => o.status !== 'pickedup');
+    renderAll();
+    showToast('Completed orders hidden from view.');
+  }
+
+  function flashPanel() {
+    const el = document.getElementById('activeList');
+    if (el) { el.classList.add('new-flash'); setTimeout(()=>el.classList.remove('new-flash'), 500); }
+  }
+
+  function doSignOut() { signOut(); }
+
+  // Auto-refresh elapsed timers every 60s
+  setInterval(() => { if (currentTab==='active') renderActive(); }, 60000);
+</script>
+</body>
+</html>

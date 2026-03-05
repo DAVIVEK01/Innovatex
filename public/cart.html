@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusEats — Cart</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="navContainer"></div>
+<div class="page-header">
+  <a href="/menu.html" class="back-btn">←</a>
+  <div class="page-header-info"><h2>Your Cart</h2><p id="cartCountHdr">0 items</p></div>
+</div>
+
+<div class="two-col page-enter" id="cartGrid">
+  <div>
+    <div class="section-title">🛒 Order Items</div>
+    <div id="cartItemsList"></div>
+  </div>
+  <div>
+    <div class="summary-card" id="summaryCard" style="display:none;">
+      <h3>Order Summary</h3>
+      <div class="sum-line"><span>Subtotal</span><span id="sumSub">₹0</span></div>
+      <div class="sum-line"><span>Taxes (5%)</span><span id="sumTax">₹0</span></div>
+      <div class="sum-line grand"><span>Grand Total</span><span id="sumTotal">₹0</span></div>
+      <div class="time-box">
+        <div class="time-box-title">⏱ Estimated Times</div>
+        <div class="t-row"><span>Prep time</span><span class="t-val" id="tPrep">—</span></div>
+        <div class="t-row"><span>Queue wait</span><span class="t-val" id="tQueue">—</span></div>
+        <div class="t-row"><span>🎯 Ready by</span><span class="t-val" id="tReady">—</span></div>
+      </div>
+      <div class="notice-box">✅ <span>Pay at pickup or use UPI. Show token at <strong id="counterLbl">Counter 2</strong>.</span></div>
+      <a href="/payment.html" class="btn btn-primary btn-lg btn-block" style="margin-top:1rem;">Proceed to Payment →</a>
+      <a href="/menu.html"    class="btn btn-ghost btn-block" style="margin-top:.5rem;border-radius:var(--radius-sm);">← Continue Shopping</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  const user = pageRequireStudent();
+  if (!user) throw '';
+  injectNavbar('cart');
+
+  let allMenu = [];
+  let queueCount = 0;
+
+  (async () => {
+    await loadConfig();
+    document.getElementById('counterLbl').textContent = CE_CONFIG.pickupCounter;
+    const [menuData, queueData] = await Promise.all([API.getMenu(), API.getQueue()]);
+    allMenu    = menuData.items;
+    queueCount = queueData.aheadCount;
+    renderCart();
+  })();
+
+  function renderCart() {
+    const items = Cart.getItemsArray(allMenu);
+    const listEl = document.getElementById('cartItemsList');
+    const summaryCard = document.getElementById('summaryCard');
+    document.getElementById('cartCountHdr').textContent = items.length + ' item' + (items.length!==1?'s':'');
+
+    if (!items.length) {
+      summaryCard.style.display = 'none';
+      listEl.innerHTML = `
+        <div class="cart-empty page-enter">
+          <div class="cart-empty-icon">🛒</div>
+          <h3>Your cart is empty</h3>
+          <p>Head to the menu and add something delicious!</p>
+          <a href="/menu.html" class="btn btn-primary btn-lg">Browse Menu →</a>
+        </div>`;
+      return;
+    }
+    summaryCard.style.display = 'block';
+    listEl.innerHTML = items.map(it => `
+      <div class="cart-item-row">
+        <div class="ci-emoji">${it.emoji}</div>
+        <div class="ci-details">
+          <div class="ci-name">${it.name}</div>
+          <div class="ci-sub">₹${it.price} each · ⏱ ${it.prep_time} min · ${it.veg?'🟢 Veg':'🔴 Non-Veg'}</div>
+          <div class="qty-inline" style="margin-top:.5rem;">
+            <button class="qty-btn" onclick="changeQty(${it.id},-1)">−</button>
+            <span class="qty-num">${it.qty}</span>
+            <button class="qty-btn" onclick="changeQty(${it.id}, 1)">+</button>
+          </div>
+        </div>
+        <div class="ci-right">
+          <div class="ci-total">₹${it.price*it.qty}</div>
+          <div class="ci-unit">₹${it.price} × ${it.qty}</div>
+        </div>
+        <button class="ci-remove" onclick="removeItem(${it.id})">✕</button>
+      </div>`).join('');
+
+    document.getElementById('sumSub').textContent  = '₹' + Cart.subtotal(allMenu);
+    document.getElementById('sumTax').textContent  = '₹' + Cart.tax(allMenu);
+    document.getElementById('sumTotal').textContent= '₹' + Cart.total(allMenu);
+    document.getElementById('tPrep').textContent   = '~' + Cart.maxPrepTime(allMenu) + ' min';
+    document.getElementById('tQueue').textContent  = '~' + estimateQueueWait(queueCount) + ' min';
+    document.getElementById('tReady').textContent  = estimatePickupTime(queueCount, Cart.maxPrepTime(allMenu));
+  }
+
+  function changeQty(id, d) { Cart.add(id, d); updateNavCartCount(); renderCart(); }
+  function removeItem(id)   { Cart.remove(id); updateNavCartCount(); renderCart(); showToast('Item removed'); }
+</script>
+</body>
+</html>

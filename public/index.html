@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusEats — Sign In</title>
+<link rel="stylesheet" href="/css/style.css">
+<style>
+  body { overflow:hidden; }
+  .login-wrap { display:flex; min-height:100vh; }
+  .login-left {
+    flex:1; background:linear-gradient(150deg,#1a0900 0%,#2d1200 50%,#3a1a00 100%);
+    display:flex; flex-direction:column; justify-content:center; align-items:center;
+    padding:4rem; position:relative; overflow:hidden;
+  }
+  .login-left::before { content:''; position:absolute; width:480px; height:480px; border-radius:50%; background:radial-gradient(circle,rgba(240,112,48,.18) 0%,transparent 70%); top:-80px; right:-80px; }
+  .login-left::after  { content:''; position:absolute; width:320px; height:320px; border-radius:50%; background:radial-gradient(circle,rgba(212,80,10,.12) 0%,transparent 70%); bottom:-60px; left:-60px; }
+  .login-brand { position:relative; z-index:1; text-align:center; }
+  .login-logo  { font-family:'Clash Display',sans-serif; font-size:3.5rem; font-weight:700; color:#fff; }
+  .login-logo span { color:#f07030; }
+  .login-tagline { color:rgba(255,255,255,.45); font-size:1rem; margin-top:.5rem; }
+  .login-college { display:inline-block; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); color:rgba(255,255,255,.6); padding:.3rem .9rem; border-radius:999px; font-size:.78rem; margin-top:.75rem; }
+  .login-features { margin-top:3rem; display:flex; flex-direction:column; gap:1.25rem; width:100%; max-width:340px; }
+  .lf-item { display:flex; align-items:center; gap:1rem; color:rgba(255,255,255,.68); font-size:.9rem; }
+  .lf-icon { width:42px; height:42px; border-radius:12px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; font-size:1.2rem; flex-shrink:0; }
+  .login-right { width:460px; background:var(--bg); display:flex; flex-direction:column; justify-content:center; padding:3.5rem; overflow-y:auto; }
+  .ltab-wrap { display:flex; background:var(--bg2); border-radius:var(--radius-sm); padding:4px; margin-bottom:1.75rem; }
+  .ltab { flex:1; padding:.58rem; border-radius:8px; border:none; background:transparent; font-family:'Bricolage Grotesque',sans-serif; font-weight:600; font-size:.88rem; cursor:pointer; color:var(--muted); transition:all .2s; }
+  .ltab.active { background:var(--surface); color:var(--text); box-shadow:var(--shadow); }
+  .login-form { display:flex; flex-direction:column; gap:1rem; }
+  .login-divider { position:relative; text-align:center; margin:.5rem 0; }
+  .login-divider::before { content:''; position:absolute; top:50%; left:0; right:0; height:1px; background:var(--border); }
+  .login-divider span { background:var(--bg); padding:0 1rem; color:var(--muted); font-size:.8rem; position:relative; }
+  .login-error { background:var(--red-light); border:1px solid #f5c0bb; color:var(--red); padding:.65rem 1rem; border-radius:var(--radius-sm); font-size:.83rem; display:none; }
+  .login-error.show { display:block; }
+  .register-link { text-align:center; font-size:.82rem; color:var(--muted); margin-top:.5rem; }
+  .register-link a { color:var(--accent); text-decoration:none; font-weight:600; }
+  .register-form { display:none; flex-direction:column; gap:1rem; }
+  .register-form.show { display:flex; }
+  .login-hint { font-size:.75rem; color:var(--muted); text-align:center; margin-top:1.25rem; line-height:1.6; }
+  @media(max-width:760px){ .login-left{display:none;} .login-right{width:100%;} }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+
+  <!-- LEFT PANEL -->
+  <div class="login-left">
+    <div class="login-brand">
+      <div class="login-logo">Campus<span>Eats</span></div>
+      <div class="login-tagline">Your College Canteen, Reimagined</div>
+      <div class="login-college" id="collegeLabel">Loading…</div>
+    </div>
+    <div class="login-features">
+      <div class="lf-item"><div class="lf-icon">🍽️</div><span>Browse the full canteen menu</span></div>
+      <div class="lf-item"><div class="lf-icon">⚡</div><span>Order ahead — skip the queue</span></div>
+      <div class="lf-item"><div class="lf-icon">📍</div><span>Real-time order tracking</span></div>
+      <div class="lf-item"><div class="lf-icon">🔔</div><span>Get notified when food is ready</span></div>
+      <div class="lf-item"><div class="lf-icon">💳</div><span>Pay with UPI, card, or cash</span></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="login-right page-enter">
+    <div style="font-family:'Clash Display',sans-serif;font-size:1.8rem;font-weight:700;margin-bottom:.3rem;">Welcome back 👋</div>
+    <div style="color:var(--muted);font-size:.88rem;margin-bottom:2rem;">Sign in with your college credentials to continue.</div>
+
+    <div class="ltab-wrap">
+      <button class="ltab active" id="tabSt" onclick="switchTab('student')">🎓 Student</button>
+      <button class="ltab" id="tabSf" onclick="switchTab('canteen')">👨‍🍳 Canteen Staff</button>
+    </div>
+
+    <!-- Student Login -->
+    <div id="studentSection">
+      <!-- Sign In -->
+      <div class="login-form" id="loginForm">
+        <div class="form-group">
+          <label class="input-label">Roll Number</label>
+          <input class="input" id="sRoll" type="text" placeholder="e.g. CS21B042" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="input-label">Password</label>
+          <input class="input" id="sPass" type="password" placeholder="Your password" onkeydown="if(event.key==='Enter') doLogin('student')">
+        </div>
+        <div class="login-error" id="sError"></div>
+        <button class="btn btn-primary btn-lg btn-block" id="loginBtn" onclick="doLogin('student')">Sign In →</button>
+        <div class="login-divider"><span>or</span></div>
+        <button class="btn btn-secondary btn-block" onclick="demoLogin('student')">🎓 Demo Student (demo / demo)</button>
+        <div class="register-link">New student? <a href="#" onclick="showRegister()">Register here →</a></div>
+      </div>
+      <!-- Register -->
+      <div class="register-form" id="registerForm">
+        <div class="form-group">
+          <label class="input-label">Full Name</label>
+          <input class="input" id="rName" type="text" placeholder="Your full name">
+        </div>
+        <div class="form-group">
+          <label class="input-label">Roll Number</label>
+          <input class="input" id="rRoll" type="text" placeholder="e.g. CS21B042">
+        </div>
+        <div class="form-group">
+          <label class="input-label">Email (optional)</label>
+          <input class="input" id="rEmail" type="email" placeholder="name@college.edu">
+        </div>
+        <div class="form-group">
+          <label class="input-label">Password (min 6 chars)</label>
+          <input class="input" id="rPass" type="password" placeholder="Choose a password">
+        </div>
+        <div class="login-error" id="rError"></div>
+        <button class="btn btn-green btn-lg btn-block" onclick="doRegister()">Create Account →</button>
+        <div class="register-link"><a href="#" onclick="showLogin()">← Back to Sign In</a></div>
+      </div>
+    </div>
+
+    <!-- Staff Login -->
+    <div id="staffSection" style="display:none;">
+      <div class="login-form">
+        <div class="form-group">
+          <label class="input-label">Staff ID</label>
+          <input class="input" id="cId" type="text" placeholder="e.g. STAFF001" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="input-label">Password</label>
+          <input class="input" id="cPass" type="password" placeholder="Staff password" onkeydown="if(event.key==='Enter') doLogin('canteen')">
+        </div>
+        <div class="login-error" id="cError"></div>
+        <button class="btn btn-primary btn-lg btn-block" onclick="doLogin('canteen')">Sign In →</button>
+        <div class="login-divider"><span>or</span></div>
+        <button class="btn btn-secondary btn-block" onclick="demoLogin('canteen')">👨‍🍳 Demo Staff (demostaff / demo)</button>
+      </div>
+    </div>
+
+    <div class="login-hint">Passwords are encrypted. Contact canteen admin for help.</div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+<script src="/js/api.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  // Redirect if already signed in
+  if (Auth.isLoggedIn()) {
+    window.location.href = Auth.isStaff() ? '/dashboard.html' : '/menu.html';
+  }
+
+  // Load college name
+  loadConfig().then(() => {
+    document.getElementById('collegeLabel').textContent = window.CE_CONFIG.collegeName;
+    document.title = window.CE_CONFIG.canteenName + ' — Sign In';
+  });
+
+  function switchTab(t) {
+    document.getElementById('tabSt').classList.toggle('active', t==='student');
+    document.getElementById('tabSf').classList.toggle('active', t==='canteen');
+    document.getElementById('studentSection').style.display = t==='student' ? 'block' : 'none';
+    document.getElementById('staffSection').style.display   = t==='canteen' ? 'block' : 'none';
+  }
+
+  function showRegister() {
+    document.getElementById('loginForm').style.display    = 'none';
+    document.getElementById('registerForm').classList.add('show');
+  }
+  function showLogin() {
+    document.getElementById('loginForm').style.display    = 'flex';
+    document.getElementById('registerForm').classList.remove('show');
+  }
+
+  async function doLogin(type) {
+    const roll = type==='student' ? document.getElementById('sRoll').value.trim() : document.getElementById('cId').value.trim();
+    const pass = type==='student' ? document.getElementById('sPass').value         : document.getElementById('cPass').value;
+    const errEl = document.getElementById(type==='student' ? 'sError' : 'cError');
+    errEl.classList.remove('show');
+
+    if (!roll || !pass) { errEl.textContent='Please fill in all fields.'; errEl.classList.add('show'); return; }
+
+    const btn = document.getElementById('loginBtn');
+    if (btn) btn.disabled = true;
+
+    try {
+      const { token, user } = await API.login(roll, pass);
+      Auth.setToken(token);
+      Auth.setUser(user);
+      showToast('✅ Welcome, ' + user.name + '!', 'success');
+      setTimeout(() => window.location.href = user.type==='canteen' ? '/dashboard.html' : '/menu.html', 500);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.add('show');
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function doRegister() {
+    const name  = document.getElementById('rName').value.trim();
+    const roll  = document.getElementById('rRoll').value.trim();
+    const email = document.getElementById('rEmail').value.trim();
+    const pass  = document.getElementById('rPass').value;
+    const errEl = document.getElementById('rError');
+    errEl.classList.remove('show');
+
+    if (!name || !roll || !pass) { errEl.textContent='Name, roll number, and password are required.'; errEl.classList.add('show'); return; }
+
+    try {
+      const { token, user } = await API.register(roll, name, email, pass);
+      Auth.setToken(token);
+      Auth.setUser(user);
+      showToast('✅ Account created! Welcome, ' + user.name, 'success');
+      setTimeout(() => window.location.href = '/menu.html', 500);
+    } catch (e) {
+      errEl.textContent = e.message;
+      errEl.classList.add('show');
+    }
+  }
+
+  async function demoLogin(type) {
+    const roll = type==='student' ? 'demo' : 'demostaff';
+    try {
+      const { token, user } = await API.login(roll, 'demo');
+      Auth.setToken(token);
+      Auth.setUser(user);
+      showToast('✅ Signed in as ' + user.name, 'success');
+      setTimeout(() => window.location.href = user.type==='canteen' ? '/dashboard.html' : '/menu.html', 500);
+    } catch (e) {
+      showToast(e.message, 'error');
+    }
+  }
+</script>
+</body>
+</html>

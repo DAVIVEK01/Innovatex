@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CampusEats — Track Order</title>
+<link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<div id="navContainer"></div>
+<div class="page-header">
+  <a href="/menu.html" class="back-btn">←</a>
+  <div class="page-header-info"><h2>Track Order</h2><p>Live real-time updates</p></div>
+</div>
+
+<div class="single-col page-enter">
+  <div id="noOrder" style="display:none;text-align:center;padding:4rem 2rem;">
+    <div style="font-size:4rem;margin-bottom:1rem;">🔍</div>
+    <h3 style="font-size:1.5rem;margin-bottom:.5rem;">No active order</h3>
+    <p style="color:var(--muted);margin-bottom:1.5rem;">You haven't placed an order yet.</p>
+    <a href="/menu.html" class="btn btn-primary btn-lg">Order Now →</a>
+  </div>
+
+  <div id="trackArea">
+    <!-- Status card -->
+    <div class="track-section">
+      <div class="track-head">
+        <div>
+          <div class="track-token" id="tToken">#—</div>
+          <div style="font-size:.82rem;color:var(--muted);margin-top:.2rem;" id="tStudentInfo">—</div>
+        </div>
+        <div id="tBadge"></div>
+      </div>
+
+      <div class="steps-wrap">
+        <div class="steps-line"></div>
+        <div class="steps-prog" id="sProgress" style="width:0%"></div>
+        <div class="step"><div class="step-circle done" id="sc0">✓</div><div class="step-label done">Order<br>Placed</div></div>
+        <div class="step"><div class="step-circle" id="sc1">👨‍🍳</div><div class="step-label" id="sl1">Preparing</div></div>
+        <div class="step"><div class="step-circle" id="sc2">🔔</div><div class="step-label" id="sl2">Ready</div></div>
+        <div class="step"><div class="step-circle" id="sc3">✅</div><div class="step-label" id="sl3">Picked Up</div></div>
+      </div>
+
+      <div class="track-bar"><div class="track-bar-fill" id="tBarFill" style="width:0%"></div></div>
+      <div class="track-status-msg" id="tMsg"></div>
+      <div class="time-chips" id="tChips"></div>
+    </div>
+
+    <!-- Order details -->
+    <div class="track-section">
+      <div class="section-title">🧾 Order Details</div>
+      <div id="tItems" style="display:flex;flex-direction:column;gap:.45rem;"></div>
+      <hr style="border:none;border-top:1px solid var(--border);margin:.75rem 0;">
+      <div class="sum-line grand"><span>Total</span><span id="tTotal">—</span></div>
+      <div class="sum-line"><span>Payment</span><span id="tPay">—</span></div>
+      <div class="sum-line"><span>Counter</span><span id="tCounter">—</span></div>
+    </div>
+
+    <!-- Live queue -->
+    <div class="track-section">
+      <div class="section-title">📋 Live Kitchen Queue</div>
+      <div id="liveQueue"></div>
+    </div>
+    <div style="text-align:center;margin-top:1rem;">
+      <a href="/menu.html" class="btn btn-ghost">+ Place Another Order</a>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+<script src="/socket.io/socket.io.js"></script>
+<script src="/js/api.js"></script>
+<script src="/js/utils.js"></script>
+<script>
+  const user = pageRequireStudent();
+  if (!user) throw '';
+  injectNavbar('track');
+
+  let currentOrder = null;
+
+  // Connect socket for live updates
+  connectSocket({
+    onOrderUpdated: (order) => {
+      if (currentOrder && order.token === currentOrder.token) {
+        currentOrder = order;
+        renderTrackUI();
+        // Alert when ready
+        if (order.status === 'ready') showToast('🔔 Your food is ready! Head to the counter.', 'success');
+      }
+      loadQueue();
+    },
+    onOrderNew: () => loadQueue(),
+  });
+
+  (async () => {
+    await loadConfig();
+    document.getElementById('tCounter').textContent = CE_CONFIG.pickupCounter || 'Counter 2';
+
+    const lastToken = parseInt(localStorage.getItem('ce_last_token') || '0');
+    if (!lastToken) { showNoOrder(); return; }
+
+    try {
+      const { order } = await API.getOrder(lastToken);
+      currentOrder = order;
+      document.getElementById('noOrder').style.display  = 'none';
+      document.getElementById('trackArea').style.display = 'block';
+      renderTrackUI();
+      renderOrderDetails();
+      loadQueue();
+    } catch {
+      showNoOrder();
+    }
+  })();
+
+  function showNoOrder() {
+    document.getElementById('noOrder').style.display  = 'block';
+    document.getElementById('trackArea').style.display = 'none';
+  }
+
+  async function loadQueue() {
+    try {
+      const { queue } = await API.getQueue();
+      renderQueue(queue);
+    } catch {}
+  }
+
+  function renderTrackUI() {
+    const o = currentOrder;
+    document.getElementById('tToken').textContent      = '#' + o.token;
+    document.getElementById('tStudentInfo').textContent = o.student_name + (o.student_roll ? ' · ' + o.student_roll : '');
+
+    const cfg = {
+      queued:    { label:'⏳ In Queue',           cls:'badge-grey',   msg:'Your order is in the queue. Kitchen will start preparing soon.', step:0, prog:'5%',  bar:5 },
+      preparing: { label:'🔥 Being Prepared',     cls:'badge-orange', msg:'👨‍🍳 Kitchen is actively preparing your food!', step:1, prog:'42%', bar: o.progress_pct||42 },
+      ready:     { label:'✅ Ready for Pickup!',  cls:'badge-green',  msg:'🔔 Your food is ready! Head to '+CE_CONFIG.pickupCounter+' with token #'+o.token, step:2, prog:'75%', bar:100 },
+      pickedup:  { label:'✅ Picked Up',          cls:'badge-grey',   msg:'✅ Order complete. Enjoy your meal!', step:3, prog:'100%', bar:100 },
+    }[o.status] || {};
+
+    document.getElementById('tBadge').innerHTML = `<span class="badge ${cfg.cls}">${cfg.label}</span>`;
+    document.getElementById('tMsg').textContent = cfg.msg;
+    document.getElementById('sProgress').style.width = cfg.prog;
+    document.getElementById('tBarFill').style.width  = cfg.bar + '%';
+
+    const step = cfg.step || 0;
+    for (let i=0; i<=3; i++) {
+      const c = document.getElementById('sc'+i);
+      const l = document.getElementById('sl'+i);
+      if (!c) continue;
+      c.className = i<step||i===0 ? 'step-circle done' : i===step ? 'step-circle active' : 'step-circle';
+      if (l) l.className = i<step||i===0 ? 'step-label done' : i===step ? 'step-label active' : 'step-label';
+    }
+
+    const elapsed   = elapsedMin(o.placed_at);
+    const placedStr = fmtTime(new Date(o.placed_at * 1000));
+    const readyStr  = o.pickup_by_iso ? fmtTime(new Date(o.pickup_by_iso)) : '—';
+    document.getElementById('tChips').innerHTML = `
+      <div class="time-chip"><div class="time-chip-label">Placed At</div><div class="time-chip-val">${placedStr}</div></div>
+      <div class="time-chip"><div class="time-chip-label">Est. Pickup</div><div class="time-chip-val">${readyStr}</div></div>
+      <div class="time-chip"><div class="time-chip-label">Elapsed</div><div class="time-chip-val">${elapsed}m</div></div>
+      <div class="time-chip"><div class="time-chip-label">Counter</div><div class="time-chip-val" style="font-size:.78rem;">${CE_CONFIG.pickupCounter||'Counter 2'}</div></div>
+    `;
+  }
+
+  function renderOrderDetails() {
+    const o = currentOrder;
+    document.getElementById('tItems').innerHTML = o.items.map(it =>
+      `<div style="display:flex;justify-content:space-between;font-size:.9rem;padding:.3rem 0;">
+        <span>${it.emoji} ${it.name} <span style="color:var(--muted);">×${it.qty}</span></span>
+        <span style="font-weight:600;">₹${it.price*it.qty}</span>
+      </div>`).join('');
+    document.getElementById('tTotal').textContent = '₹' + o.total;
+    document.getElementById('tPay').textContent = {cash:'Cash at Counter',upi:'UPI',card:'Card'}[o.pay_method] || o.pay_method;
+  }
+
+  function renderQueue(queue) {
+    const el = document.getElementById('liveQueue');
+    const active = queue.filter(o => o.status !== 'pickedup');
+    if (!active.length) { el.innerHTML='<div style="color:var(--muted);font-size:.86rem;">Queue is empty.</div>'; return; }
+    const sLabel = { queued:'⏳ Queued', preparing:'🔥 Preparing', ready:'✅ Ready' };
+    const sCls   = { queued:'badge-grey', preparing:'badge-orange', ready:'badge-green' };
+    el.innerHTML = active.map((o,i) => {
+      const mine = currentOrder && o.token === currentOrder.token;
+      return `
+        <div class="queue-row">
+          <div class="q-pos">${i+1}</div>
+          <div class="q-info">
+            <div class="q-name" style="${mine?'color:var(--accent);font-weight:700;':''}">#${o.token} ${mine?'← YOU':''} — ${o.student_name.split(' ')[0]}</div>
+            <div class="q-items">${o.items.map(it=>it.emoji).join(' ')}</div>
+          </div>
+          <span class="badge ${sCls[o.status]||'badge-grey'}" style="font-size:.72rem;">${sLabel[o.status]||'—'}</span>
+        </div>`;
+    }).join('');
+  }
+</script>
+</body>
+</html>

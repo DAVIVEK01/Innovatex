@@ -1,0 +1,7 @@
+node_modules/
+.env
+server/campuseats.db
+server/campuseats.db-wal
+server/campuseats.db-shm
+*.log
+.DS_Store
