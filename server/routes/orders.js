@@ -59,9 +59,16 @@ router.get('/:token', requireAuth, (req, res) => {
 /* ── POST /api/orders ── place a new order ── */
 router.post('/', requireStudent, (req, res) => {
   const row = stmt.getSetting.get('canteen_open');
-  if (!row || row.value === '0') {
-    return res.status(403).json({ error: 'Canteen is currently closed.' });
-  }
+
+const isOpen =
+  row &&
+  (row.value === '1' ||
+   row.value === 'true' ||
+   row.value === true);
+
+if (!isOpen) {
+  return res.status(403).json({ error: 'Canteen is currently closed.' });
+}
   const { items, payMethod, instructions } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
