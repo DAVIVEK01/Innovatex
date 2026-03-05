@@ -18,7 +18,25 @@ router.get('/', requireAuth, (req, res) => {
   const items = stmt.getAllMenu.all();
   return res.json({ items });
 });
+/* ── GET /api/settings ── */
+router.get('/settings', requireAuth, (req, res) => {
+  const keys = ['canteen_open', 'college_name', 'canteen_name', 'pickup_counter', 'todays_special'];
+  const settings = {};
+  for (const key of keys) {
+    const row = stmt.getSetting.get(key);
+    settings[key] = row ? row.value : null;
+  }
+  return res.json({ settings });
+});
 
+/* ── PATCH /api/settings ── update canteen settings (staff) ── */
+router.patch('/settings', requireStaff, (req, res) => {
+  const allowed = ['canteen_open', 'college_name', 'canteen_name', 'pickup_counter', 'todays_special'];
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      stmt.upsertSetting.run(key, String(req.body[key]));
+    }
+  }
 /* ── PATCH /api/menu/:id ── update item details (staff) ── */
 router.patch('/:id', requireStaff, (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -47,25 +65,7 @@ router.patch('/:id/toggle', requireStaff, (req, res) => {
   return res.json({ item: fresh, message: `"${fresh.name}" is now ${newAvail ? 'available' : 'unavailable'}.` });
 });
 
-/* ── GET /api/settings ── */
-router.get('/settings', requireAuth, (req, res) => {
-  const keys = ['canteen_open', 'college_name', 'canteen_name', 'pickup_counter', 'todays_special'];
-  const settings = {};
-  for (const key of keys) {
-    const row = stmt.getSetting.get(key);
-    settings[key] = row ? row.value : null;
-  }
-  return res.json({ settings });
-});
 
-/* ── PATCH /api/settings ── update canteen settings (staff) ── */
-router.patch('/settings', requireStaff, (req, res) => {
-  const allowed = ['canteen_open', 'college_name', 'canteen_name', 'pickup_counter', 'todays_special'];
-  for (const key of allowed) {
-    if (req.body[key] !== undefined) {
-      stmt.upsertSetting.run(key, String(req.body[key]));
-    }
-  }
 
   // Broadcast settings change
   req.io.emit('settings:updated', req.body);
