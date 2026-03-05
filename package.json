@@ -4,7 +4,7 @@
   "description": "College Canteen Ordering System",
   "main": "server/server.js",
   "scripts": {
-    "start": "node server/server.js",
+    "start": "node server/seed.js && node server/server.js",
     "dev": "nodemon server/server.js",
     "seed": "node server/seed.js"
   },
