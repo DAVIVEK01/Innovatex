@@ -62,7 +62,6 @@ router.post('/', requireStudent, (req, res) => {
   if (!row || row.value === '0') {
     return res.status(403).json({ error: 'Canteen is currently closed.' });
   }
-
   const { items, payMethod, instructions } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
