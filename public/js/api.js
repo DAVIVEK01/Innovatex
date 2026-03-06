@@ -77,7 +77,7 @@ const API = {
   // Menu
   getMenu()                  { return apiFetch('GET', '/menu'); },
   getSettings()              { return apiFetch('GET', '/menu/settings'); },
-  toggleItem(id)             { return apiFetch('PATCH', `/api/menu/${id}/toggle`); },
+  toggleItem(id)             { return apiFetch('PATCH', `/menu/${id}/toggle`); },
   updateItem(id, data)       { return apiFetch('PATCH', `/menu/${id}`, data); },
   updateSettings(data)       { return apiFetch('PATCH', '/menu/settings', data); },
 
