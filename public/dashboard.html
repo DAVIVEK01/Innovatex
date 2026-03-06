@@ -6,6 +6,7 @@
 <title>CampusEats — Kitchen Dashboard</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
+  /* ── Existing dashboard styles ── */
   .dash-tab-bar { background:var(--surface); border-bottom:1px solid var(--border); display:flex; overflow-x:auto; }
   .dtab { padding:.85rem 1.4rem; border:none; background:transparent; font-family:'Bricolage Grotesque',sans-serif; font-size:.88rem; font-weight:600; cursor:pointer; color:var(--muted); border-bottom:2.5px solid transparent; transition:all .2s; white-space:nowrap; }
   .dtab:hover   { color:var(--text); background:var(--bg); }
@@ -23,6 +24,29 @@
   .toggle-slider:before { content:''; position:absolute; height:16px; width:16px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
   input:checked + .toggle-slider { background:var(--green); }
   input:checked + .toggle-slider:before { transform:translateX(18px); }
+
+  /* ── Counter filter tabs (new) ── */
+  .ctr-filter-bar { display:flex; gap:.4rem; flex-wrap:wrap; padding:.85rem 1.25rem; border-bottom:1px solid var(--border); background:var(--bg); }
+  .ctr-ftab { display:flex; align-items:center; gap:.38rem; padding:.35rem .88rem; border-radius:999px; border:1.5px solid var(--border); background:var(--surface); font-family:'Bricolage Grotesque',sans-serif; font-size:.78rem; font-weight:600; cursor:pointer; color:var(--muted); transition:all .18s; white-space:nowrap; }
+  .ctr-ftab:hover { border-color:var(--accent); color:var(--accent); }
+  .ctr-ftab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .ctr-ftab .cnt { background:rgba(255,255,255,.22); border-radius:999px; padding:.02rem .4rem; font-size:.7rem; }
+  .ctr-ftab:not(.active) .cnt { background:var(--bg2); color:var(--text2); }
+
+  /* ── Counter section header (when showing All) ── */
+  .ctr-section-hd { display:flex; align-items:center; gap:.55rem; padding:.6rem 1.25rem; background:var(--bg); border-bottom:1px solid var(--border); position:sticky; top:0; z-index:5; }
+  .ctr-section-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .ctr-section-title { font-family:'Clash Display',sans-serif; font-size:.85rem; font-weight:700; }
+  .ctr-section-sub { font-size:.75rem; color:var(--muted); }
+
+  /* ── Item counter badge on ticket ── */
+  .ctr-item-tag { display:inline-flex; align-items:center; gap:.25rem; padding:.1rem .48rem; border-radius:999px; font-size:.7rem; font-weight:700; margin:.15rem .2rem 0 0; }
+  .ctr-tag-1 { background:var(--green-light);  color:var(--green);  border:1px solid #a8e0c0; }
+  .ctr-tag-2 { background:var(--red-light);    color:var(--red);    border:1px solid #f5c0bb; }
+  .ctr-tag-3 { background:var(--yellow-light); color:var(--yellow); border:1px solid #f5dc8a; }
+  .ctr-tag-4 { background:#e8f0fd;             color:#2255c0;       border:1px solid #a8c0f0; }
+
+  .no-ctr-msg { padding:2rem 1.25rem; text-align:center; color:var(--muted); font-size:.86rem; }
 </style>
 </head>
 <body>
@@ -50,15 +74,17 @@
 
 <!-- TABS -->
 <div class="dash-tab-bar">
-  <button class="dtab active" id="dt-active"  onclick="setTab('active')">📥 Active Orders</button>
-  <button class="dtab"        id="dt-ready"   onclick="setTab('ready')">✅ Ready</button>
-  <button class="dtab"        id="dt-done"    onclick="setTab('done')">📦 Completed</button>
-  <button class="dtab"        id="dt-menu"    onclick="setTab('menu')">🍽️ Menu Manager</button>
-  <button class="dtab"        id="dt-settings"onclick="setTab('settings')">⚙️ Settings</button>
+  <button class="dtab active" id="dt-active"   onclick="setTab('active')">📥 Active Orders</button>
+  <button class="dtab"        id="dt-ready"    onclick="setTab('ready')">✅ Ready</button>
+  <button class="dtab"        id="dt-done"     onclick="setTab('done')">📦 Completed</button>
+  <button class="dtab"        id="dt-menu"     onclick="setTab('menu')">🍽️ Menu Manager</button>
+  <button class="dtab"        id="dt-settings" onclick="setTab('settings')">⚙️ Settings</button>
 </div>
 
 <div class="dash-body">
   <div>
+
+    <!-- ACTIVE ORDERS -->
     <div id="tabActive">
       <div class="dash-panel">
         <div class="dash-panel-hd">
@@ -66,14 +92,33 @@
             <h3>📥 Incoming Orders</h3>
             <div class="sw" id="swAnim" style="display:none;"><span></span><span></span><span></span></div>
           </div>
-          <div style="display:flex;gap:.5rem;align-items:center;">
-            <span class="badge badge-orange" id="activeBadge">0</span>
-          </div>
+          <span class="badge badge-orange" id="activeBadge">0</span>
         </div>
+
+        <!-- Counter station filter tabs -->
+        <div class="ctr-filter-bar">
+          <button class="ctr-ftab active" id="cft-all" onclick="setCtrFilter('all')">
+            All Counters <span class="cnt" id="cnt-all">0</span>
+          </button>
+          <button class="ctr-ftab" id="cft-1" onclick="setCtrFilter(1)">
+            🟢 Counter 1 — South Indian &amp; Veg <span class="cnt" id="cnt-1">0</span>
+          </button>
+          <button class="ctr-ftab" id="cft-2" onclick="setCtrFilter(2)">
+            🔴 Counter 2 — Non-Veg <span class="cnt" id="cnt-2">0</span>
+          </button>
+          <button class="ctr-ftab" id="cft-3" onclick="setCtrFilter(3)">
+            🟡 Counter 3 — Chinese &amp; Fast Food <span class="cnt" id="cnt-3">0</span>
+          </button>
+          <button class="ctr-ftab" id="cft-4" onclick="setCtrFilter(4)">
+            🔵 Counter 4 — Juices &amp; Drinks <span class="cnt" id="cnt-4">0</span>
+          </button>
+        </div>
+
         <div id="activeList"></div>
       </div>
     </div>
 
+    <!-- READY -->
     <div id="tabReady" style="display:none;">
       <div class="dash-panel">
         <div class="dash-panel-hd"><h3>✅ Ready for Pickup</h3><span class="badge badge-green" id="readyBadge">0</span></div>
@@ -81,6 +126,7 @@
       </div>
     </div>
 
+    <!-- DONE -->
     <div id="tabDone" style="display:none;">
       <div class="dash-panel">
         <div class="dash-panel-hd">
@@ -91,6 +137,7 @@
       </div>
     </div>
 
+    <!-- MENU MANAGER -->
     <div id="tabMenu" style="display:none;">
       <div class="dash-panel">
         <div class="dash-panel-hd"><h3>🍽️ Menu Manager</h3><span style="font-size:.8rem;color:var(--muted);">Toggle to mark items unavailable</span></div>
@@ -98,6 +145,7 @@
       </div>
     </div>
 
+    <!-- SETTINGS -->
     <div id="tabSettings" style="display:none;">
       <div class="dash-panel">
         <div class="dash-panel-hd"><h3>⚙️ Canteen Settings</h3></div>
@@ -112,6 +160,7 @@
     </div>
   </div>
 
+  <!-- SIDEBAR -->
   <div class="dash-side">
     <div class="side-card">
       <h4>🔔 Awaiting Pickup</h4>
@@ -139,13 +188,41 @@
   const user = pageRequireStaff();
   if (!user) throw '';
 
-  let allOrders = [];
-  let allMenu   = [];
+  let allOrders  = [];
+  let allMenu    = [];
   let currentTab = 'active';
+  let ctrFilter  = 'all';
 
   document.getElementById('dashStaffName').textContent = '👨‍🍳 ' + user.name;
 
-  // Connect socket
+  // ── Counter station config ────────────────────────────────
+  // Maps items to counters by veg status / category / keyword
+  const CHINESE_KEYWORDS = ['fried rice','noodle','burger','french fries','fries','sandwich','roll','chowmein','hakka','spring roll','momos','pasta'];
+
+  const CTRS = {
+    1: { label:'Counter 1', name:'South Indian & Veg',  dot:'#1a7a4a', tagCls:'ctr-tag-1' },
+    2: { label:'Counter 2', name:'Non-Veg',             dot:'#c0392b', tagCls:'ctr-tag-2' },
+    3: { label:'Counter 3', name:'Chinese & Fast Food', dot:'#d4a017', tagCls:'ctr-tag-3' },
+    4: { label:'Counter 4', name:'Juices & Drinks',     dot:'#2255c0', tagCls:'ctr-tag-4' },
+  };
+
+  function itemCounter(item) {
+    if (!item.veg) return 2;
+    const n = (item.name || '').toLowerCase();
+    if (item.category === 'beverages' || item.category === 'desserts') return 4;
+    if (CHINESE_KEYWORDS.some(k => n.includes(k))) return 3;
+    return 1;
+  }
+
+  function orderCounters(order) {
+    return [...new Set((order.items || []).map(it => itemCounter(it)))].sort();
+  }
+
+  function itemsForCounter(order, cNum) {
+    return (order.items || []).filter(it => itemCounter(it) === cNum);
+  }
+
+  // ── Socket ────────────────────────────────────────────────
   connectSocket({
     onOrderNew:     (o) => { allOrders.push(o); renderAll(); showToast('📥 New order #'+o.token+'!', 'info'); flashPanel(); },
     onOrderUpdated: (o) => { const i=allOrders.findIndex(x=>x.token===o.token); if(i!==-1) allOrders[i]=o; renderAll(); },
@@ -162,24 +239,33 @@
     renderAll();
   })();
 
-  async function loadSettings() {
-    await loadConfig();
-    document.getElementById('setCollege').value  = CE_CONFIG.collegeName    || '';
-    document.getElementById('setCanteen').value  = CE_CONFIG.canteenName    || '';
-    document.getElementById('setCounter').value  = CE_CONFIG.pickupCounter  || '';
-    document.getElementById('setSpecial').value  = CE_CONFIG.todaysSpecial  || '';
-  }
-
-  function setTab(t) {
-    currentTab = t;
-    ['active','ready','done','menu','settings'].forEach(x => {
-      document.getElementById('dt-'+x).classList.toggle('active', x===t);
-      document.getElementById('tab'+x.charAt(0).toUpperCase()+x.slice(1)).style.display = x===t?'block':'none';
+  // ── Tab switching ─────────────────────────────────────────
+  function setTab(tab) {
+    currentTab = tab;
+    ['active','ready','done','menu','settings'].forEach(t => {
+      document.getElementById('dt-'+t).classList.toggle('active', t===tab);
+      const el = document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+      if (el) el.style.display = t===tab ? 'block' : 'none';
     });
-    if (t==='menu') renderMenuMgr();
+    if (tab === 'menu') renderMenuMgr();
   }
 
-  function renderAll() { updateStats(); renderActive(); renderReady(); renderDone(); renderSideReady(); renderTopItems(); }
+  function setCtrFilter(v) {
+    ctrFilter = v;
+    document.getElementById('cft-all').classList.toggle('active', v==='all');
+    [1,2,3,4].forEach(n => document.getElementById('cft-'+n).classList.toggle('active', v===n));
+    renderActive();
+  }
+
+  // ── Render all ────────────────────────────────────────────
+  function renderAll() {
+    updateStats();
+    renderActive();
+    renderReady();
+    renderDone();
+    renderSideReady();
+    renderTopItems();
+  }
 
   function updateStats() {
     document.getElementById('dsTotal').textContent     = allOrders.length;
@@ -187,42 +273,95 @@
     document.getElementById('dsPreparing').textContent = allOrders.filter(o=>o.status==='preparing').length;
     document.getElementById('dsReady').textContent     = allOrders.filter(o=>o.status==='ready').length;
     document.getElementById('dsRevenue').textContent   = '₹' + allOrders.reduce((s,o)=>s+o.total,0);
-    const q = allOrders.filter(o=>o.status==='queued'||o.status==='preparing').length;
-    document.getElementById('activeBadge').textContent = q;
+
+    const active = allOrders.filter(o => ['queued','preparing'].includes(o.status));
+    const cnt = active.length;
+    document.getElementById('activeBadge').textContent = cnt;
+    document.getElementById('swAnim').style.display    = cnt ? 'flex' : 'none';
     document.getElementById('readyBadge').textContent  = allOrders.filter(o=>o.status==='ready').length;
-    document.getElementById('swAnim').style.display    = q>0 ? 'flex' : 'none';
+
+    // Counter tab counts
+    document.getElementById('cnt-all').textContent = cnt;
+    [1,2,3,4].forEach(n => {
+      document.getElementById('cnt-'+n).textContent = active.filter(o => orderCounters(o).includes(n)).length;
+    });
   }
 
   function renderActive() {
-    const active = allOrders.filter(o=>o.status==='queued'||o.status==='preparing');
-    const el = document.getElementById('activeList');
-    if (!active.length) { el.innerHTML='<div class="no-orders-msg"><div class="no-orders-icon">🎉</div><p>No pending orders. All caught up!</p></div>'; return; }
-    el.innerHTML = active.map(o => {
-      const elapsed  = elapsedMin(o.placed_at);
-      const urgent   = elapsed > o.prep_time;
-      return `
-        <div class="o-ticket" id="ot-${o.token}">
-          <div class="o-ticket-top">
-            <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
-              <span class="o-ticket-id">#${o.token}</span>
-              <span class="o-ticket-name">${o.student_name}</span>
-              <span class="badge ${o.status==='preparing'?'badge-orange':'badge-grey'}">${o.status==='preparing'?'Preparing':'Queued'}</span>
-            </div>
-            <div style="display:flex;align-items:center;gap:.6rem;">
-              <span class="o-ticket-timer ${urgent?'urgent':''}">${elapsed}m ago</span>
-              <span style="font-size:.78rem;color:var(--muted);">₹${o.total}</span>
-            </div>
+    let active = allOrders.filter(o => ['queued','preparing'].includes(o.status));
+    const el   = document.getElementById('activeList');
+
+    if (!active.length) {
+      el.innerHTML = '<div class="no-orders-msg"><div class="no-orders-icon">🎉</div><p>All caught up! No pending orders.</p></div>';
+      return;
+    }
+
+    if (ctrFilter !== 'all') {
+      // Single counter view
+      const filtered = active.filter(o => orderCounters(o).includes(ctrFilter));
+      if (!filtered.length) {
+        const c = CTRS[ctrFilter];
+        el.innerHTML = `<div class="no-ctr-msg">No active orders for <strong>${c.label} — ${c.name}</strong> right now.</div>`;
+        return;
+      }
+      el.innerHTML = filtered.map(o => ticketHTML(o)).join('');
+      return;
+    }
+
+    // All counters — group by station
+    let html = '';
+    [1,2,3,4].forEach(cNum => {
+      const grouped = active.filter(o => orderCounters(o).includes(cNum));
+      if (!grouped.length) return;
+      const c = CTRS[cNum];
+      html += `
+        <div>
+          <div class="ctr-section-hd">
+            <div class="ctr-section-dot" style="background:${c.dot};"></div>
+            <span class="ctr-section-title">${c.label}</span>
+            <span class="ctr-section-sub">— ${c.name}</span>
+            <span class="badge badge-grey" style="margin-left:auto;font-size:.72rem;">${grouped.length} order${grouped.length!==1?'s':''}</span>
           </div>
-          <div class="o-ticket-items">${o.items.map(it=>`${it.emoji} ${it.name} ×${it.qty}`).join(' · ')}</div>
-          ${o.instructions ? `<div class="o-ticket-note">📝 "${o.instructions}"</div>` : ''}
-          <div class="o-ticket-actions">
-            ${o.status==='queued'    ? `<button class="t-action-btn btn-start" onclick="setStatus(${o.token},'preparing')">▶ Start Preparing</button>` : ''}
-            ${o.status==='preparing' ? `<button class="t-action-btn btn-ready" onclick="setStatus(${o.token},'ready')">✅ Mark Ready</button>` : ''}
-            <span style="font-size:.76rem;color:var(--muted);">${fmtTime(new Date(o.placed_at*1000))}</span>
-          </div>
-          ${o.status==='preparing' ? `<div class="o-ticket-prog"><div class="o-ticket-prog-fill" style="width:${o.progress_pct||0}%"></div></div>` : ''}
+          ${grouped.map(o => ticketHTML(o)).join('')}
         </div>`;
+    });
+    el.innerHTML = html;
+  }
+
+  function ticketHTML(o) {
+    const elapsed = elapsedMin(o.placed_at);
+    const urgent  = elapsed > 15;
+    const ctrs    = orderCounters(o);
+
+    // Build coloured item tags grouped by counter
+    const tagsHTML = ctrs.map(cn => {
+      const c   = CTRS[cn];
+      const its = itemsForCounter(o, cn);
+      return `<span class="ctr-item-tag ${c.tagCls}">${c.label}: ${its.map(it=>`${it.emoji} ${it.name}×${it.qty}`).join(', ')}</span>`;
     }).join('');
+
+    return `
+      <div class="o-ticket" id="ot-${o.token}">
+        <div class="o-ticket-top">
+          <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+            <span class="o-ticket-id">#${o.token}</span>
+            <span class="o-ticket-name">${o.student_name}</span>
+            <span class="badge ${o.status==='preparing'?'badge-orange':'badge-grey'}">${o.status==='preparing'?'Preparing':'Queued'}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:.5rem;">
+            <span class="o-ticket-timer ${urgent?'urgent':''}">${elapsed}m ago</span>
+            <span style="font-size:.78rem;color:var(--muted);">₹${o.total}</span>
+          </div>
+        </div>
+        <div style="margin:.45rem 0 .38rem;line-height:2;">${tagsHTML}</div>
+        ${o.instructions ? `<div class="o-ticket-note">📝 "${o.instructions}"</div>` : ''}
+        <div class="o-ticket-actions">
+          ${o.status==='queued'    ? `<button class="t-action-btn btn-start" onclick="setStatus(${o.token},'preparing')">▶ Start Preparing</button>` : ''}
+          ${o.status==='preparing' ? `<button class="t-action-btn btn-ready" onclick="setStatus(${o.token},'ready')">✅ Mark Ready</button>` : ''}
+          <span style="font-size:.76rem;color:var(--muted);">${fmtTime(new Date(o.placed_at*1000))}</span>
+        </div>
+        ${o.status==='preparing' ? `<div class="o-ticket-prog"><div class="o-ticket-prog-fill" style="width:${o.progress_pct||0}%"></div></div>` : ''}
+      </div>`;
   }
 
   function renderReady() {
@@ -284,25 +423,37 @@
       </div>`).join('');
   }
 
-  async function renderMenuMgr() {
+  function renderMenuMgr() {
     const el = document.getElementById('menuMgrList');
     if (!allMenu.length) { el.innerHTML='<div style="color:var(--muted);padding:1rem;">Loading menu…</div>'; return; }
-    const cats = [...new Set(allMenu.map(m=>m.category))];
-    el.innerHTML = cats.map(cat => `
-      <div style="margin-bottom:1.25rem;">
-        <div style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:.5rem 0;">${cat}</div>
-        ${allMenu.filter(m=>m.category===cat).map(item => `
-          <div class="menu-toggle-row">
-            <div>
-              <span style="font-weight:600;">${item.emoji} ${item.name}</span>
-              <span style="font-size:.78rem;color:var(--muted);margin-left:.5rem;">₹${item.price}</span>
-            </div>
-            <label class="toggle-switch">
-              <input type="checkbox" ${item.available?'checked':''} onchange="toggleMenuItem(${item.id})">
-              <span class="toggle-slider"></span>
-            </label>
-          </div>`).join('')}
-      </div>`).join('');
+
+    // Group by counter station instead of category
+    const groups = { 1:[], 2:[], 3:[], 4:[] };
+    allMenu.forEach(item => groups[itemCounter(item)].push(item));
+
+    el.innerHTML = [1,2,3,4].map(cn => {
+      const c     = CTRS[cn];
+      const items = groups[cn];
+      if (!items.length) return '';
+      return `
+        <div style="margin-bottom:1.5rem;">
+          <div style="display:flex;align-items:center;gap:.5rem;padding:.45rem 0;border-bottom:2px solid ${c.dot}25;margin-bottom:.5rem;">
+            <div style="width:9px;height:9px;border-radius:50%;background:${c.dot};flex-shrink:0;"></div>
+            <span style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:${c.dot};">${c.label} — ${c.name}</span>
+          </div>
+          ${items.map(item => `
+            <div class="menu-toggle-row">
+              <div>
+                <span style="font-weight:600;">${item.emoji} ${item.name}</span>
+                <span style="font-size:.78rem;color:var(--muted);margin-left:.5rem;">₹${item.price}</span>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" ${item.available?'checked':''} onchange="toggleMenuItem(${item.id})">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>`).join('')}
+        </div>`;
+    }).join('');
   }
 
   async function toggleMenuItem(id) {
@@ -326,7 +477,7 @@
   }
 
   async function toggleCanteen() {
-    const open = CE_CONFIG.canteenOpen === false ? true : false; // toggle
+    const open = CE_CONFIG.canteenOpen === false ? true : false;
     try {
       await API.updateSettings({ canteen_open: String(open) });
       CE_CONFIG.canteenOpen = open;
@@ -341,6 +492,13 @@
     document.getElementById('cStatusTxt').textContent = open ? 'Open for Orders' : 'Closed';
   }
 
+  function loadSettings() {
+    document.getElementById('setCollege').value = CE_CONFIG.collegeName   || '';
+    document.getElementById('setCanteen').value = CE_CONFIG.canteenName   || '';
+    document.getElementById('setCounter').value = CE_CONFIG.pickupCounter || '';
+    document.getElementById('setSpecial').value = CE_CONFIG.todaysSpecial || '';
+  }
+
   async function saveSettings() {
     try {
       await API.updateSettings({
@@ -353,8 +511,7 @@
     } catch (e) { showToast(e.message, 'error'); }
   }
 
-  async function clearCompleted() {
-    // Client-side only — completed orders stay in DB for records, just hide them from view
+  function clearCompleted() {
     allOrders = allOrders.filter(o => o.status !== 'pickedup');
     renderAll();
     showToast('Completed orders hidden from view.');
@@ -367,7 +524,6 @@
 
   function doSignOut() { signOut(); }
 
-  // Auto-refresh elapsed timers every 60s
   setInterval(() => { if (currentTab==='active') renderActive(); }, 60000);
 </script>
 </body>

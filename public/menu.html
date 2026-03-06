@@ -6,6 +6,30 @@
 <title>CampusEats — Menu</title>
 <link rel="stylesheet" href="/css/style.css">
 <style>
+  /* ── Closed banner ── */
+  .closed-banner {
+    display: none;
+    background: var(--red);
+    color: #fff;
+    padding: .65rem 2rem;
+    text-align: center;
+    font-size: .88rem;
+    font-weight: 700;
+    align-items: center;
+    justify-content: center;
+    gap: .6rem;
+    position: sticky;
+    top: 64px;
+    z-index: 150;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+  }
+  .closed-banner.show { display: flex; }
+
+  /* Grey out add buttons when canteen is closed */
+  body.canteen-closed .add-btn     { opacity: .35; pointer-events: none; }
+  body.canteen-closed .qty-inline  { opacity: .35; pointer-events: none; }
+
+  /* Search bar */
   .menu-search { display:flex; align-items:center; gap:.5rem; background:var(--surface); border:1.5px solid var(--border); border-radius:999px; padding:.45rem .45rem .45rem 1rem; margin-bottom:1.25rem; transition:border-color .2s; }
   .menu-search:focus-within { border-color:var(--accent); box-shadow:0 0 0 3px rgba(212,80,10,.1); }
   .menu-search input { flex:1; border:none; background:transparent; color:var(--text); font-family:'Bricolage Grotesque',sans-serif; font-size:.9rem; outline:none; }
@@ -24,9 +48,17 @@
 <body>
 <div id="navContainer"></div>
 
+<!-- Canteen closed banner — only shown when canteen_open = false -->
+<div class="closed-banner" id="closedBanner">
+  🔴 &nbsp;Canteen is <strong>CLOSED</strong> — ordering is not available right now.
+</div>
+
 <!-- TICKER -->
 <div class="live-ticker" id="liveTicker">
-  <div class="ticker-item"><div class="status-dot" style="background:var(--accent2);display:inline-block;width:7px;height:7px;border-radius:50%;"></div>&nbsp;<strong id="tickerStatus">Kitchen Active</strong></div>
+  <div class="ticker-item">
+    <div id="tickerDot" class="status-dot" style="background:var(--accent2);"></div>
+    &nbsp;<strong id="tickerStatus">Kitchen Active</strong>
+  </div>
   <div class="ticker-sep">•</div>
   <div class="ticker-item">📍 Pickup: <strong id="tickerCounter">Loading…</strong></div>
   <div class="ticker-sep">•</div>
@@ -67,7 +99,8 @@
     </div>
     <div class="category-nav" id="categoryNav"></div>
     <div class="menu-grid" id="menuGrid">
-      ${[...Array(8)].map(()=>'<div class="skeleton"></div>').join('')}
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
+      <div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div>
     </div>
   </div>
   <div>
@@ -84,7 +117,7 @@
           <div class="t-row"><span>Prep</span><span class="t-val" id="mPrep">—</span></div>
           <div class="t-row"><span>Ready by</span><span class="t-val" id="mReady">—</span></div>
         </div>
-        <a href="/cart.html" class="btn btn-primary btn-block" style="margin-top:1rem;border-radius:var(--radius-sm);">View Cart & Checkout →</a>
+        <a href="/cart.html" class="btn btn-primary btn-block" id="mcCheckout" style="margin-top:1rem;border-radius:var(--radius-sm);">View Cart & Checkout →</a>
       </div>
     </div>
   </div>
@@ -104,7 +137,7 @@
   const user = pageRequireStudent();
   if (!user) throw '';
 
-  let allMenu   = [];
+  let allMenu    = [];
   let currentCat = 'all';
   let vegFilter  = 'all';
   let queueCount = 0;
@@ -113,43 +146,85 @@
   document.getElementById('heroName').textContent  = user.name.split(' ')[0];
   injectNavbar('menu');
 
-  // Connect socket for live queue updates
+  // ── Socket for live updates ──────────────────────────────
   connectSocket({
     onOrderNew:      () => refreshQueue(),
     onOrderUpdated:  () => refreshQueue(),
-    onSettingsUpdated: (s) => applySettings(s),
-    onMenuUpdated:   (item) => {
+    onSettingsUpdated: (s) => {
+      // Live push when staff toggles canteen status
+      if (s.canteen_open !== undefined) {
+        const open = s.canteen_open !== 'false';
+        CE_CONFIG.canteenOpen = open;
+        applyCanteenStatus(open);
+      }
+      if (s.pickup_counter) document.getElementById('tickerCounter').textContent = s.pickup_counter;
+      if (s.todays_special) document.getElementById('tickerSpecial').textContent = s.todays_special;
+    },
+    onMenuUpdated: (item) => {
       const idx = allMenu.findIndex(m => m.id === item.id);
       if (idx !== -1) allMenu[idx] = item;
       applyFilters();
     },
   });
 
-  // Load everything in parallel
+  // ── Boot ─────────────────────────────────────────────────
   (async () => {
     await loadConfig();
     applySettingsFromConfig();
+    applyCanteenStatus(CE_CONFIG.canteenOpen !== false);
+
     const [menuData, queueData] = await Promise.all([API.getMenu(), API.getQueue()]);
-    allMenu = menuData.items;
+    allMenu    = menuData.items;
     queueCount = queueData.aheadCount;
-    document.getElementById('hItems').textContent = allMenu.length;
-    document.getElementById('hQueue').textContent = queueCount;
+
+    document.getElementById('hItems').textContent       = allMenu.length;
+    document.getElementById('hQueue').textContent       = queueCount;
     document.getElementById('tickerQCount').textContent = queueCount;
+    document.getElementById('tickerWait').textContent   = '~' + (5 + queueCount * 3) + ' min';
+
     renderCategoryNav();
     applyFilters();
     updateMiniCart();
   })();
 
+  // ── Canteen status ───────────────────────────────────────
+  function applyCanteenStatus(isOpen) {
+    // 1. Sticky closed banner
+    document.getElementById('closedBanner').classList.toggle('show', !isOpen);
+
+    // 2. Ticker dot + text
+    const dot = document.getElementById('tickerDot');
+    const txt = document.getElementById('tickerStatus');
+    dot.style.background = isOpen ? 'var(--accent2)' : 'var(--red)';
+    txt.textContent = isOpen ? 'Kitchen Active' : '🔴 CLOSED — Not taking orders';
+
+    // 3. Body class greys out add buttons
+    document.body.classList.toggle('canteen-closed', !isOpen);
+
+    // 4. Navbar badge (defined in utils.js)
+    setNavCanteenStatus(isOpen);
+
+    // 5. Disable mini-cart checkout when closed
+    const btn = document.getElementById('mcCheckout');
+    if (btn) {
+      if (isOpen) {
+        btn.href = '/cart.html';
+        btn.textContent = 'View Cart & Checkout →';
+        btn.style.opacity = '';
+        btn.style.pointerEvents = '';
+      } else {
+        btn.href = '#';
+        btn.textContent = '🔴 Canteen Closed';
+        btn.style.opacity = '.4';
+        btn.style.pointerEvents = 'none';
+      }
+    }
+  }
+
   function applySettingsFromConfig() {
     document.getElementById('tickerCounter').textContent = CE_CONFIG.pickupCounter;
     document.getElementById('tickerSpecial').textContent = CE_CONFIG.todaysSpecial || 'Chicken Biryani';
-    const waitMin = 5 + queueCount * 3;
-    document.getElementById('tickerWait').textContent = '~' + waitMin + ' min';
-  }
-
-  function applySettings(s) {
-    if (s.pickup_counter) document.getElementById('tickerCounter').textContent = s.pickup_counter;
-    if (s.todays_special) document.getElementById('tickerSpecial').textContent = s.todays_special;
+    document.getElementById('tickerWait').textContent    = '~' + (5 + queueCount * 3) + ' min';
   }
 
   async function refreshQueue() {
@@ -162,7 +237,7 @@
     } catch {}
   }
 
-  /* ── Render ── */
+  // ── Render ───────────────────────────────────────────────
   function renderCategoryNav() {
     document.getElementById('categoryNav').innerHTML = CATEGORIES.map(c => `
       <button class="cat-btn ${currentCat===c.id?'active':''}" onclick="setCat('${c.id}')">
@@ -232,8 +307,23 @@
     }).join('');
   }
 
-  function addItem(id)         { Cart.add(id, 1); updateNavCartCount(); applyFilters(); showToast('Added to cart!'); }
-  function changeItem(id, d)   { Cart.add(id, d); updateNavCartCount(); applyFilters(); updateMiniCart(); }
+  function addItem(id) {
+    if (CE_CONFIG.canteenOpen === false) {
+      showToast('🔴 Canteen is closed — ordering unavailable', 'error');
+      return;
+    }
+    Cart.add(id, 1);
+    updateNavCartCount();
+    applyFilters();
+    showToast('Added to cart!');
+  }
+
+  function changeItem(id, d) {
+    Cart.add(id, d);
+    updateNavCartCount();
+    applyFilters();
+    updateMiniCart();
+  }
 
   function updateMiniCart() {
     const items = Cart.getItemsArray(allMenu);
@@ -255,6 +345,8 @@
     document.getElementById('mTotal').textContent = '₹' + Cart.total(allMenu);
     document.getElementById('mPrep').textContent  = '~' + Cart.maxPrepTime(allMenu) + ' min';
     document.getElementById('mReady').textContent = estimatePickupTime(queueCount, Cart.maxPrepTime(allMenu));
+    // Re-apply closed state to checkout button
+    applyCanteenStatus(CE_CONFIG.canteenOpen !== false);
   }
 </script>
 </body>

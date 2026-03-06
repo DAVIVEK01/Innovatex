@@ -29,6 +29,10 @@ function injectNavbar(activePage) {
         <a href="/track.html" class="nav-link ${activePage==='track'?'active':''}">📍 Track Order</a>
       </div>
       <div class="nav-right">
+        <div id="navCanteenBadge" style="display:none;background:var(--red-light);border:1.5px solid #f5c0bb;color:var(--red);padding:.25rem .75rem;border-radius:999px;font-size:.75rem;font-weight:700;align-items:center;gap:.35rem;">
+          <span style="width:7px;height:7px;border-radius:50%;background:var(--red);display:inline-block;flex-shrink:0;"></span>
+          Closed
+        </div>
         <span class="nav-user-name">Hi, ${name}!</span>
         <a href="/cart.html" class="nav-cart-btn">
           🛒 Cart <div class="nav-cart-count" id="navCartCount">${count}</div>
@@ -36,6 +40,13 @@ function injectNavbar(activePage) {
         <div class="nav-avatar" onclick="signOut()" title="Sign Out">🎓</div>
       </div>
     </nav>`;
+}
+
+/* ── Toggle the "Closed" badge in the navbar ── */
+function setNavCanteenStatus(isOpen) {
+  const el = document.getElementById('navCanteenBadge');
+  if (!el) return;
+  el.style.display = isOpen ? 'none' : 'flex';
 }
 
 function updateNavCartCount() {
@@ -63,7 +74,6 @@ function fmtTime(date) {
 function fmtPrice(n) { return '₹' + n; }
 
 function elapsedMin(placedAt) {
-  // placedAt can be unix seconds (from server) or ms
   const ms = placedAt > 1e10 ? placedAt : placedAt * 1000;
   return Math.max(0, Math.floor((Date.now() - ms) / 60000));
 }
@@ -73,7 +83,7 @@ function getMealGreeting() {
   return h < 11 ? 'Morning' : h < 15 ? 'Afternoon' : 'Evening';
 }
 
-/* ── Estimate queue wait (from queue data) ── */
+/* ── Estimate queue wait ── */
 function estimateQueueWait(queueLength) {
   return queueLength * 3;
 }
