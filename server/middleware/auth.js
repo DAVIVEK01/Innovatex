@@ -5,7 +5,7 @@
 
 const jwt = require('jsonwebtoken');
 
-const SECRET = process.env.JWT_SECRET || 'fallback_dev_secret_change_in_prod';
+const SECRET = process.env.JWT_SECRET || 'fallback_dev_secret';
 
 /**
  * requireAuth — any logged-in user (student or staff)

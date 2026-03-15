@@ -1,10 +1,10 @@
 // ============================================================
 //  CampusEats — routes/menu.js
-//  GET    /api/menu           — get all menu items
-//  PATCH  /api/menu/:id       — update item (staff)
+//  GET    /api/menu            — get all menu items
+//  PATCH  /api/menu/:id        — update item (staff)
 //  PATCH  /api/menu/:id/toggle — toggle availability (staff)
-//  GET    /api/settings       — get canteen settings
-//  PATCH  /api/settings       — update settings (staff)
+//  GET    /api/menu/settings   — get canteen settings
+//  PATCH  /api/menu/settings   — update settings (staff)
 // ============================================================
 
 const express = require('express');
@@ -12,31 +12,44 @@ const { stmt } = require('../db');
 const { requireAuth, requireStaff } = require('../middleware/auth');
 
 const router = express.Router();
+const SETTINGS_KEYS = ['canteen_open', 'college_name', 'canteen_name', 'pickup_counter', 'todays_special'];
 
-/* ── GET /api/menu ── */
-router.get('/', requireAuth, (req, res) => {
-  const items = stmt.getAllMenu.all();
-  return res.json({ items });
-});
-/* ── GET /api/settings ── */
-router.get('/settings', requireAuth, (req, res) => {
-  const keys = ['canteen_open', 'college_name', 'canteen_name', 'pickup_counter', 'todays_special'];
+function readSettings(keys = SETTINGS_KEYS) {
   const settings = {};
   for (const key of keys) {
     const row = stmt.getSetting.get(key);
     settings[key] = row ? row.value : null;
   }
-  return res.json({ settings });
+  return settings;
+}
+
+/* ── GET /api/menu ── */
+router.get('/', requireAuth, (_req, res) => {
+  const items = stmt.getAllMenu.all();
+  return res.json({ items });
 });
 
-/* ── PATCH /api/settings ── update canteen settings (staff) ── */
+/* ── GET /api/menu/settings ── */
+router.get('/settings', requireAuth, (_req, res) => {
+  return res.json({ settings: readSettings() });
+});
+
+/* ── PATCH /api/menu/settings ── update canteen settings (staff) ── */
 router.patch('/settings', requireStaff, (req, res) => {
-  const allowed = ['canteen_open', 'college_name', 'canteen_name', 'pickup_counter', 'todays_special'];
-  for (const key of allowed) {
+  for (const key of SETTINGS_KEYS) {
     if (req.body[key] !== undefined) {
       stmt.upsertSetting.run(key, String(req.body[key]));
     }
   }
+
+  const settings = readSettings();
+
+  // Broadcast settings change to all connected clients.
+  req.io.emit('settings:updated', settings);
+
+  return res.json({ settings });
+});
+
 /* ── PATCH /api/menu/:id ── update item details (staff) ── */
 router.patch('/:id', requireStaff, (req, res) => {
   const id = parseInt(req.params.id, 10);
@@ -63,19 +76,6 @@ router.patch('/:id/toggle', requireStaff, (req, res) => {
   const fresh = stmt.getMenuItemById.get(id);
   req.io.emit('menu:updated', { item: fresh });
   return res.json({ item: fresh, message: `"${fresh.name}" is now ${newAvail ? 'available' : 'unavailable'}.` });
-});
-
-
-
-  // Broadcast settings change
-  req.io.emit('settings:updated', req.body);
-
-  const settings = {};
-  for (const key of allowed) {
-    const row = stmt.getSetting.get(key);
-    settings[key] = row ? row.value : null;
-  }
-  return res.json({ settings });
 });
 
 module.exports = router;
